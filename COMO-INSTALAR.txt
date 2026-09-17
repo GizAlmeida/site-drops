@@ -1,0 +1,21 @@
+BANNERS CLICÁVEIS — DROPS DE LUXO
+
+1. Copie banner-links.js para a mesma pasta do seu script.js.
+2. Copie banner-links.css para a mesma pasta do seu style.css.
+3. No index.html, dentro do <head>, depois do link do style.css, coloque:
+   <link rel="stylesheet" href="banner-links.css">
+4. No final do index.html, depois de:
+   <script src="script.js"></script>
+   coloque:
+   <script src="banner-links.js"></script>
+
+Não substitua o seu script.js atual. Este recurso foi feito como complemento para preservar o código que já está funcionando.
+
+Como usar:
+- Abra a Área da loja.
+- Em Gerenciar banners, escolha o banner que quer alterar.
+- Clique em Trocar banner e selecione a nova imagem.
+- Escolha a Categoria de destino.
+- Clique em Salvar.
+
+Se escolher "Sem destino / não clicável", aquele banner continuará aparecendo normalmente, mas não terá ação de clique.

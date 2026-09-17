@@ -1,0 +1,28 @@
+[
+  {
+    "id": "c1789603714169735c3887",
+    "name": "Giz Teste",
+    "email": "teste@dropsdeluxo.com",
+    "phone": "85999999999",
+    "passwordHash": "scrypt$16384$8$1$b07148051805d831479b22d51a73fa41$9815dcb341a216712278d953ac420c51e446a54b82e0fe4bc339a59e1562660ecaf1d3db933ebd2ee9d4782c6fd4b997f5b4bdf1ae0dbd89c1a9b137d587fe4f",
+    "createdAt": "2026-09-17T00:08:34.290Z"
+  },
+  {
+    "id": "c178960626473425560221",
+    "name": "Giz Almeida Teste",
+    "email": "giz.teste2026@gmail.com",
+    "phone": "85988887777",
+    "passwordHash": "scrypt$16384$8$1$c99b0962d669257a8134d26384c88493$75c62529dd4728a76aa4a58608cb3f2abbbf3861e07229413e4ef46f3bdc3bf38257f3b5d7d186b64b6d6ddcf75e2af6692991db8ac0c4e32a4d4106ce65a850",
+    "createdAt": "2026-09-17T00:51:04.858Z",
+    "address": {
+      "cep": "60720605",
+      "street": "Avenida Augusto dos Anjos",
+      "number": "123",
+      "complement": "Apto 101",
+      "neighborhood": "Parangaba",
+      "city": "Fortaleza",
+      "state": "CE"
+    },
+    "updatedAt": "2026-09-17T01:34:22.576Z"
+  }
+]

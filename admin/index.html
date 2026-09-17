@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Área da Loja — Drops de Luxo</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<main class="admin-page">
+<section class="login-card" id="loginCard">
+<div class="brand-mark">Drops de Luxo</div>
+<p class="eyebrow">ÁREA RESTRITA</p>
+<h1>Área da Loja</h1>
+<p class="intro">Acesso exclusivo para administração da loja.</p>
+<form id="adminLoginForm" autocomplete="on">
+<label for="adminEmail">E-mail</label>
+<input id="adminEmail" name="email" type="email" autocomplete="username" placeholder="seu e-mail" required>
+<label for="adminPassword">Senha</label>
+<input id="adminPassword" name="password" type="password" autocomplete="current-password" placeholder="sua senha" required>
+<button type="submit" class="btn-primary">Entrar</button>
+<p id="loginMessage" class="message" role="alert" aria-live="polite"></p>
+</form>
+<a class="back-link" href="../index.html">← Voltar para a loja</a>
+</section>
+
+<section class="dashboard-shell" id="dashboardShell" hidden>
+<header class="dashboard-header">
+<div><p class="eyebrow">DROPS DE LUXO</p><h2>Painel da Loja</h2></div>
+<div class="header-actions"><a class="btn-outline" href="../index.html">Ver loja</a><button type="button" class="btn-outline" id="logoutBtn">Sair</button></div>
+</header>
+
+<section class="admin-panel">
+<div class="panel-heading">
+<div><p class="eyebrow">CATÁLOGO</p><h3>Produtos</h3><p>Cadastre e remova produtos. As alterações ficam salvas no servidor e aparecem na loja pública.</p></div>
+<button type="button" class="btn-outline" id="refreshProductsBtn">Atualizar</button>
+</div>
+
+<div id="importBox" class="import-box" hidden>
+<strong>Encontramos um catálogo salvo neste navegador.</strong>
+<p>Se este for o seu catálogo atual, você pode importá-lo para o servidor. Isso substitui o catálogo que está no servidor.</p>
+<button type="button" class="btn-primary small" id="importCatalogBtn">Importar catálogo deste navegador</button>
+</div>
+
+<form id="productForm" class="product-form">
+<div class="form-grid">
+<div><label for="newName">Nome do produto</label><input id="newName" required placeholder="Ex.: Khamrah"></div>
+<div><label for="newBrand">Marca</label><input id="newBrand" placeholder="Ex.: Lattafa"></div>
+<div><label for="newCat">Categoria</label><select id="newCat" required>
+<option value="brand-masc">Brand Collections Masc.</option><option value="brand-fem">Brand Collections Fem.</option><option value="arabe-masc">Perfumes Árabes Masc.</option><option value="arabe-fem">Perfumes Árabes Fem.</option><option value="body-splash">Body Splash</option><option value="arabic-collection">Arabic Collections</option><option value="kits">Kits</option><option value="outlet">Outlet</option>
+</select></div>
+<div><label for="newGender">Gênero</label><select id="newGender"><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="unissex">Unissex</option></select></div>
+<div><label for="newVolume">Volume (ml)</label><input id="newVolume" type="number" min="0" step="1" placeholder="100"></div>
+<div><label for="newPrice">Preço de venda</label><input id="newPrice" type="number" min="0" step="0.01" required placeholder="59.90"></div>
+<div><label for="newOriginalPrice">Preço original <span class="optional">(opcional)</span></label><input id="newOriginalPrice" type="number" min="0" step="0.01" placeholder="79.90"></div>
+<div><label for="newStock">Estoque</label><input id="newStock" type="number" min="0" step="1" value="1"></div>
+</div>
+<label for="newDesc">Descrição</label><textarea id="newDesc" rows="4" placeholder="Descreva a fragrância, família olfativa, fixação e características."></textarea>
+<div class="checks"><label><input type="checkbox" id="newIsLaunch" checked> Exibir em <strong>Lançamentos</strong></label><label><input type="checkbox" id="newIsFeatured"> Marcar como <strong>Destaque</strong></label></div>
+<div class="photo-upload"><label for="newImage">Foto do produto</label><input type="file" id="newImage" accept="image/*"><div id="photoPreview" class="photo-preview">Nenhuma foto selecionada</div></div>
+<button type="submit" class="btn-primary">Cadastrar produto</button>
+<p id="productMessage" class="message" role="alert" aria-live="polite"></p>
+</form>
+
+<div class="catalog-status" id="catalogStatus"></div>
+<div class="table-wrap"><table class="admin-table"><thead><tr><th>Foto</th><th>Produto</th><th>Marca</th><th>Categoria</th><th>Volume</th><th>Preço</th><th>Estoque</th><th>Ação</th></tr></thead><tbody id="productsBody"></tbody></table></div>
+</section>
+<div class="security-note"><strong>Segurança:</strong><p>O navegador público apenas consulta os produtos. Cadastro, importação e remoção passam pela sessão administrativa do servidor.</p></div>
+</section>
+</main>
+<script src="admin.js"></script>
+</body>
+</html>
