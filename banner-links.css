@@ -1,0 +1,139 @@
+/* =========================================================
+   DROPS DE LUXO — BANNERS CLICÁVEIS
+   ========================================================= */
+
+.hero-slide-clickable {
+    cursor: pointer;
+}
+
+.hero-slide-clickable img {
+    transition: transform .35s ease, filter .35s ease;
+}
+
+.hero-slide-clickable:hover img {
+    transform: scale(1.012);
+    filter: brightness(.985);
+}
+
+.banner-manager-fieldset {
+    position: relative;
+}
+
+.banner-manager-intro {
+    margin: -2px 0 18px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.55;
+}
+
+.banner-manager-list {
+    display: grid;
+    gap: 14px;
+}
+
+.banner-manager-card {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(255,255,255,.55);
+}
+
+.banner-manager-preview {
+    width: 150px;
+    aspect-ratio: 2 / 1;
+    overflow: hidden;
+    border-radius: 7px;
+    background: var(--cream-dark);
+}
+
+.banner-manager-preview img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.banner-manager-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.banner-manager-info > strong {
+    margin-bottom: 9px;
+    color: var(--ink);
+    font-family: var(--display);
+    font-size: 19px;
+    font-weight: 500;
+}
+
+.banner-manager-info .field {
+    margin-bottom: 5px;
+}
+
+.banner-manager-info select {
+    min-height: 38px;
+    font-size: 10px;
+}
+
+.banner-manager-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 9px;
+}
+
+.banner-manager-actions .btn {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 7px;
+}
+
+.banner-manager-destination {
+    display: block;
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: 8px;
+}
+
+.banner-manager-toast {
+    position: sticky;
+    bottom: 12px;
+    z-index: 5;
+    width: fit-content;
+    max-width: 100%;
+    margin: 12px auto 0;
+    padding: 9px 13px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 9px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    transition: opacity .2s ease, visibility .2s ease, transform .2s ease;
+}
+
+.banner-manager-toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+    .banner-manager-card {
+        grid-template-columns: 1fr;
+    }
+
+    .banner-manager-preview {
+        width: 100%;
+    }
+
+    .banner-manager-actions {
+        grid-template-columns: 1fr;
+    }
+}
