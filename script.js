@@ -1680,11 +1680,54 @@ async function goToInfinitePayCheckout(lines, subtotal) {
     });
   }
 
-  if (endereco) {
-    payload.address = {
-      cep: cep || undefined,
+  const savedAddress = currentCustomer?.address || null;
 
+  if (savedAddress || endereco) {
+    payload.address = {
+      cep: savedAddress?.cep || cep || undefined,
+      street: savedAddress?.street || endereco,
+      neighborhood: savedAddress?.neighborhood || undefined,
+      number: savedAddress?.number || undefined,
+      complement: savedAddress?.complement || undefined,
+    };
+  }
+
+  payload.store_order = {
+    delivery: checkoutState.delivery,
+    freight: {
+      service: checkoutState.freightService || "",
+      price: selectedFreightPrice()
+    },
+    address: savedAddress ? {
+      cep: savedAddress.cep || "",
+      street: savedAddress.street || "",
+      number: savedAddress.number || "",
+      complement: savedAddress.complement || "",
+      neighborhood: savedAddress.neighborhood || "",
+      city: savedAddress.city || "",
+      state: savedAddress.state || ""
+    } : (endereco ? {
+      cep,
       street: endereco,
+      number: "",
+      complement: "",
+      neighborhood: "",
+      city: "",
+      state: ""
+    } : null),
+    items: lines.map((line) => ({
+      productId: line.product.id || "",
+      name: line.product.name,
+      quantity: Number(line.qty),
+      unitPrice: Number(line.product.price)
+    }))
+  };
+
+  if (currentCustomer) {
+    payload.customer = {
+      name: currentCustomer.name || "",
+      email: currentCustomer.email || "",
+      phone_number: currentCustomer.phone || ""
     };
   }
 
@@ -1732,7 +1775,7 @@ async function goToInfinitePayCheckout(lines, subtotal) {
 
   try {
     const response = await fetch(
-      "https://api.infinitepay.io/invoices/public/checkout/links",
+      "/api/infinitepay/checkout/links",
       {
         method: "POST",
 
@@ -1804,7 +1847,28 @@ async function handleReturnFromInfinitePay() {
     return;
   }
 
-  const success = [
+  let paidByServer = false;
+
+  if (transactionNsu && params.get("slug")) {
+    try {
+      const checkResponse = await fetch("/api/infinitepay/payment-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          handle: INFINITEPAY_HANDLE,
+          order_nsu: orderNsu,
+          transaction_nsu: transactionNsu,
+          slug: params.get("slug")
+        })
+      });
+      const checkData = await checkResponse.json();
+      paidByServer = Boolean(checkData?.paid);
+    } catch (error) {
+      console.error("Erro ao confirmar pagamento:", error);
+    }
+  }
+
+  const success = paidByServer || [
     "approved",
     "paid",
     "success",

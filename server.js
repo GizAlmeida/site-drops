@@ -36,6 +36,20 @@ const SUPERFRETE_TOKEN = process.env.SUPERFRETE_TOKEN || "";
 const SUPERFRETE_API_URL = process.env.SUPERFRETE_API_URL || "https://api.superfrete.com/api/v0/calculator";
 const SUPERFRETE_USER_AGENT = process.env.SUPERFRETE_USER_AGENT || "DropsDeLuxo/1.0";
 
+
+/* =========================================================
+   INFINITEPAY — CHECKOUT E CONFIRMAÇÃO
+   A criação do checkout passa pelo backend para evitar CORS.
+   A webhook pública será usada quando o site estiver online.
+   ========================================================= */
+const INFINITEPAY_CHECKOUT_API_URL =
+    "https://api.infinitepay.io/invoices/public/checkout/links";
+const INFINITEPAY_PAYMENT_CHECK_URL =
+    "https://api.checkout.infinitepay.io/payment_check";
+const INFINITEPAY_WEBHOOK_URL = String(process.env.INFINITEPAY_WEBHOOK_URL || "").trim();
+const ORDERS_DIR = path.join(ROOT, "data");
+const ORDERS_FILE = path.join(ORDERS_DIR, "orders.json");
+
 /* =========================================================
    AUTENTICAÇÃO — ÁREA ADMINISTRATIVA
    A senha nunca fica no HTML/JS.
@@ -732,6 +746,195 @@ function normalizeService(service) {
     };
 }
 
+
+function ensureOrdersFile() {
+    if (!fs.existsSync(ORDERS_DIR)) fs.mkdirSync(ORDERS_DIR, { recursive: true });
+    if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, "[]", "utf8");
+}
+
+function readOrdersFile() {
+    ensureOrdersFile();
+    try {
+        const parsed = JSON.parse(fs.readFileSync(ORDERS_FILE, "utf8"));
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error("Erro ao ler pedidos:", error);
+        throw new Error("Não foi possível ler os pedidos.");
+    }
+}
+
+function writeOrdersFile(orders) {
+    ensureOrdersFile();
+    const temp = `${ORDERS_FILE}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(temp, JSON.stringify(orders, null, 2), "utf8");
+    fs.renameSync(temp, ORDERS_FILE);
+}
+
+function upsertPendingOrder(payload) {
+    const orderNsu = String(payload?.order_nsu || "").trim();
+    if (!orderNsu) return null;
+
+    const orders = readOrdersFile();
+    const existingIndex = orders.findIndex(order => order.order_nsu === orderNsu);
+    const total = Array.isArray(payload.items)
+        ? payload.items.reduce((sum, item) => sum + (Number(item?.price) || 0) * (Number(item?.quantity) || 0), 0)
+        : 0;
+
+    const internal = payload.store_order && typeof payload.store_order === "object"
+        ? payload.store_order
+        : {};
+
+    const order = {
+        order_nsu: orderNsu,
+        status: existingIndex >= 0 ? orders[existingIndex].status : "aguardando_pagamento",
+        amount: total,
+        items: Array.isArray(payload.items) ? payload.items.map(item => ({
+            quantity: Number(item?.quantity) || 0,
+            price: Number(item?.price) || 0,
+            description: String(item?.description || "")
+        })) : [],
+        store_items: Array.isArray(internal.items) ? internal.items : [],
+        customer: payload.customer || null,
+        address: internal.address || payload.address || null,
+        delivery: internal.delivery || null,
+        freight: internal.freight || null,
+        createdAt: existingIndex >= 0 ? orders[existingIndex].createdAt : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) orders[existingIndex] = { ...orders[existingIndex], ...order };
+    else orders.push(order);
+    writeOrdersFile(orders);
+    return order;
+}
+
+function updateOrderPaid(data) {
+    const orderNsu = String(data?.order_nsu || "").trim();
+    if (!orderNsu) return null;
+    const orders = readOrdersFile();
+    const index = orders.findIndex(order => order.order_nsu === orderNsu);
+    if (index < 0) return null;
+
+    orders[index] = {
+        ...orders[index],
+        status: data.paid === false ? "aguardando_pagamento" : "pago",
+        transaction_nsu: String(data.transaction_nsu || orders[index].transaction_nsu || ""),
+        invoice_slug: String(data.slug || data.invoice_slug || orders[index].invoice_slug || ""),
+        receipt_url: String(data.receipt_url || orders[index].receipt_url || ""),
+        capture_method: String(data.capture_method || orders[index].capture_method || ""),
+        paid_amount: Number(data.paid_amount || orders[index].paid_amount || 0),
+        paidAt: data.paid === false ? orders[index].paidAt || null : (orders[index].paidAt || new Date().toISOString()),
+        updatedAt: new Date().toISOString()
+    };
+    writeOrdersFile(orders);
+    return orders[index];
+}
+
+async function createInfinitePayCheckout(req, res) {
+    let payload;
+    try { payload = await readJson(req, 50000); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+
+    if (!payload?.handle || !Array.isArray(payload.items) || !payload.items.length || !payload.order_nsu) {
+        return sendJson(res, 400, { error: "Dados do checkout da InfinitePay incompletos." });
+    }
+
+    // Guarda o pedido antes de enviar ao gateway. store_order é interno e não é enviado à InfinitePay.
+    upsertPendingOrder(payload);
+
+    const gatewayPayload = { ...payload };
+    delete gatewayPayload.store_order;
+    if (INFINITEPAY_WEBHOOK_URL) gatewayPayload.webhook_url = INFINITEPAY_WEBHOOK_URL;
+
+    try {
+        const response = await fetch(INFINITEPAY_CHECKOUT_API_URL, {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "User-Agent": "DropsDeLuxo/1.0"
+            },
+            body: JSON.stringify(gatewayPayload)
+        });
+        const text = await response.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+
+        if (!response.ok) {
+            console.error("InfinitePay HTTP", response.status, data);
+            return sendJson(res, response.status >= 400 && response.status < 500 ? response.status : 502, {
+                error: data?.message || data?.error || "A InfinitePay não conseguiu gerar o checkout.",
+                infinitepayStatus: response.status
+            });
+        }
+        return sendJson(res, 200, data);
+    } catch (error) {
+        console.error("Erro ao conectar com a InfinitePay:", error);
+        return sendJson(res, 502, { error: "Não foi possível conectar com a InfinitePay.", detail: error.message });
+    }
+}
+
+async function checkInfinitePayPayment(req, res) {
+    let payload;
+    try { payload = await readJson(req, 20000); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+
+    const body = {
+        handle: String(payload?.handle || ""),
+        order_nsu: String(payload?.order_nsu || ""),
+        transaction_nsu: String(payload?.transaction_nsu || ""),
+        slug: String(payload?.slug || "")
+    };
+
+    if (!body.handle || !body.order_nsu || !body.transaction_nsu || !body.slug) {
+        return sendJson(res, 400, { error: "Dados insuficientes para verificar o pagamento." });
+    }
+
+    try {
+        const response = await fetch(INFINITEPAY_PAYMENT_CHECK_URL, {
+            method: "POST",
+            headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        const text = await response.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+        if (!response.ok) return sendJson(res, 502, { error: "A InfinitePay não confirmou o pagamento.", infinitepayStatus: response.status });
+        if (data?.paid) updateOrderPaid({ ...data, ...body, slug: body.slug });
+        return sendJson(res, 200, data);
+    } catch (error) {
+        console.error("Erro no payment_check da InfinitePay:", error);
+        return sendJson(res, 502, { error: "Não foi possível consultar o pagamento na InfinitePay." });
+    }
+}
+
+async function infinitePayWebhook(req, res) {
+    let payload;
+    try { payload = await readJson(req, 50000); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+
+    if (!payload?.order_nsu) return sendJson(res, 400, { error: "order_nsu ausente." });
+
+    try {
+        const order = updateOrderPaid({ ...payload, paid: true });
+        if (!order) return sendJson(res, 400, { error: "Pedido não encontrado para este order_nsu." });
+        return sendJson(res, 200, { ok: true });
+    } catch (error) {
+        console.error("Erro ao processar webhook InfinitePay:", error);
+        return sendJson(res, 500, { error: "Não foi possível processar o webhook." });
+    }
+}
+
+function getOrder(req, res, orderNsu) {
+    try {
+        const order = readOrdersFile().find(item => item.order_nsu === String(orderNsu || ""));
+        if (!order) return sendJson(res, 404, { error: "Pedido não encontrado." });
+        return sendJson(res, 200, { order });
+    } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+    }
+}
+
 async function calculateFreight(req, res) {
     if (!SUPERFRETE_TOKEN) {
         return sendJson(res, 500, {
@@ -1181,6 +1384,22 @@ const server = http.createServer(async (req, res) => {
 
     const pathname = req.url.split("?")[0];
 
+    if (req.method === "POST" && pathname === "/api/infinitepay/checkout/links") {
+        return createInfinitePayCheckout(req, res);
+    }
+
+    if (req.method === "POST" && pathname === "/api/infinitepay/payment-check") {
+        return checkInfinitePayPayment(req, res);
+    }
+
+    if (req.method === "POST" && pathname === "/api/infinitepay/webhook") {
+        return infinitePayWebhook(req, res);
+    }
+
+    if (req.method === "GET" && pathname.startsWith("/api/orders/")) {
+        return getOrder(req, res, pathname.slice("/api/orders/".length));
+    }
+
     if (req.method === "POST" && pathname === "/api/freight") {
         return calculateFreight(req, res);
     }
@@ -1257,7 +1476,8 @@ const server = http.createServer(async (req, res) => {
             ok: true,
             superfreteConfigured: Boolean(SUPERFRETE_TOKEN),
             adminConfigured: Boolean(ADMIN_EMAIL && ADMIN_PASSWORD_HASH),
-            customerStoreReady: true
+            customerStoreReady: true,
+            infinitePayWebhookConfigured: Boolean(INFINITEPAY_WEBHOOK_URL)
         });
     }
 

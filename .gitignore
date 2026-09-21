@@ -3,3 +3,6 @@ node_modules/
 *.log
 *backup*
 .env.txt
+
+data/customers.json
+data/orders.json
