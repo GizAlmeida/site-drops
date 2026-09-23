@@ -318,9 +318,32 @@
         injectManager();
     }
 
-    function initialize() {
+    async function loadServerBanners() {
+        try {
+            // O servidor é a fonte oficial. O localStorage fica apenas como
+            // fallback para manter a loja funcionando se a API estiver indisponível.
+            const response = await fetch("/api/banners", { cache: "no-store" });
+            if (!response.ok) throw new Error("Falha ao carregar banners.");
+            const data = await response.json();
+            if (Array.isArray(data.banners) && data.banners.length) {
+                banners = DEFAULT_BANNERS.map((item, index) => ({
+                    ...item,
+                    ...(data.banners[index] || {})
+                }));
+                applyBannerLinks();
+                return true;
+            }
+        } catch (error) {
+            console.warn("Não foi possível carregar banners do servidor. Usando configuração local.", error);
+        }
+
         banners = readBanners();
         applyBannerLinks();
+        return false;
+    }
+
+    function initialize() {
+        loadServerBanners();
 
         const adminBody = document.getElementById("adminBody");
         if (!adminBody) return;
@@ -334,7 +357,6 @@
             subtree: false
         });
 
-        // Caso a área administrativa já esteja aberta.
         injectManager();
     }
 

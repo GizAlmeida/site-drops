@@ -116,7 +116,7 @@ importCatalogBtn?.addEventListener("click",async()=>{
 document.getElementById("refreshProductsBtn")?.addEventListener("click",loadProducts);
 
 async function checkSession(){
- try{const data=await api("/api/admin/me");if(data.authenticated){showDashboard();await loadProducts();checkLocalCatalog()}else showLogin()}
+ try{const data=await api("/api/admin/me");if(data.authenticated){showDashboard();await loadProducts();await loadBanners();checkLocalCatalog()}else showLogin()}
  catch{showLogin()}
 }
 
@@ -128,9 +128,115 @@ loginForm?.addEventListener("submit",async e=>{
   const response=await fetch("/api/admin/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok){showMessage(data.error||"Não foi possível entrar na área administrativa.");return}
-  document.getElementById("adminPassword").value="";showMessage("");showDashboard();await loadProducts();checkLocalCatalog();
+  document.getElementById("adminPassword").value="";showMessage("");showDashboard();await loadProducts();await loadBanners();checkLocalCatalog();
  }catch{showMessage("Não foi possível conectar ao servidor. Verifique se o server.js está rodando.")}
 });
 
 logoutBtn?.addEventListener("click",async()=>{try{await fetch("/api/admin/logout",{method:"POST",credentials:"same-origin"})}finally{showLogin()}});
 checkSession();
+
+
+const bannerMessage = document.getElementById("bannerMessage");
+const bannersAdminGrid = document.getElementById("bannersAdminGrid");
+const refreshBannersBtn = document.getElementById("refreshBannersBtn");
+
+const BANNER_CATEGORIES = [
+ {id:"brand-masc",label:"Brand Collections Masc."},
+ {id:"brand-fem",label:"Brand Collections Fem."},
+ {id:"arabe-masc",label:"Perfumes Árabes Masc."},
+ {id:"arabe-fem",label:"Perfumes Árabes Fem."},
+ {id:"body-splash",label:"Body Splash"},
+ {id:"arabic-collection",label:"Arabic Collections"},
+ {id:"kits",label:"Kits"},
+ {id:"outlet",label:"Outlet"}
+];
+
+function showBannerMessage(text, error=false){
+ if(!bannerMessage)return;
+ bannerMessage.textContent=text||"";
+ bannerMessage.style.color=error?"var(--danger)":"var(--gray)";
+}
+
+function bannerOptions(selected){
+ return `<option value="">Sem destino / não clicável</option>`+
+  BANNER_CATEGORIES.map(c=>`<option value="${esc(c.id)}" ${c.id===selected?"selected":""}>${esc(c.label)}</option>`).join("");
+}
+
+function renderBanners(banners){
+ if(!bannersAdminGrid)return;
+ bannersAdminGrid.innerHTML=(banners||[]).map((banner,index)=>`\
+  <article class="banner-admin-card" data-banner-card="${index}">\
+   <div class="banner-admin-preview"><img src="${esc(banner.image)}" alt="Prévia do banner ${index+1}" data-banner-preview="${index}"></div>\
+   <div class="banner-admin-info">\
+    <strong>Banner ${index+1}</strong>\
+    <label for="bannerCategory${index}">Categoria de destino</label>\
+    <select id="bannerCategory${index}" data-banner-category="${index}">${bannerOptions(banner.category)}</select>\
+    <input type="file" accept="image/*" hidden data-banner-file="${index}">\
+    <div class="banner-admin-actions">\
+      <button type="button" class="btn-outline" data-banner-choose="${index}">Trocar imagem</button>\
+      <button type="button" class="btn-primary small" data-banner-save="${index}">Salvar</button>\
+    </div>\
+    <small data-banner-destination="${index}">${banner.category?`Destino: ${esc((BANNER_CATEGORIES.find(c=>c.id===banner.category)||{}).label||banner.category)}`:"Sem destino"}</small>\
+   </div>\
+  </article>`).join("");
+
+ bannersAdminGrid.querySelectorAll("[data-banner-choose]").forEach(btn=>btn.addEventListener("click",()=>{
+  document.querySelector(`[data-banner-file="${btn.dataset.bannerChoose}"]`)?.click();
+ }));
+ bannersAdminGrid.querySelectorAll("[data-banner-category]").forEach(select=>select.addEventListener("change",()=>{
+  const label=(BANNER_CATEGORIES.find(c=>c.id===select.value)||{}).label||select.value;
+  const dest=bannersAdminGrid.querySelector(`[data-banner-destination="${select.dataset.bannerCategory}"]`);
+  if(dest)dest.textContent=select.value?`Destino: ${label}`:"Sem destino";
+ }));
+ bannersAdminGrid.querySelectorAll("[data-banner-file]").forEach(input=>input.addEventListener("change",async()=>{
+  const file=input.files?.[0]; if(!file)return;
+  try{
+   const data=await compressBanner(file);
+   const preview=bannersAdminGrid.querySelector(`[data-banner-preview="${input.dataset.bannerFile}"]`);
+   if(preview)preview.src=data;
+   input.closest(".banner-admin-card").dataset.pendingImage=data;
+   showBannerMessage("Prévia atualizada. Clique em Salvar.");
+  }catch(e){input.value="";showBannerMessage(e.message,true)}
+ }));
+ bannersAdminGrid.querySelectorAll("[data-banner-save]").forEach(btn=>btn.addEventListener("click",async()=>{
+  const index=Number(btn.dataset.bannerSave), card=btn.closest(".banner-admin-card");
+  const select=card.querySelector(`[data-banner-category="${index}"]`);
+  const image=card.dataset.pendingImage;
+  const payload={category:select?.value||""};
+  if(image)payload.image=image;
+  btn.disabled=true;showBannerMessage(`Salvando banner ${index+1}...`);
+  try{
+   const data=await api(`/api/admin/banners/${index}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+   card.dataset.pendingImage="";
+   localStorage.removeItem("dropsLuxoBanners");
+   const preview=card.querySelector(`[data-banner-preview="${index}"]`); if(preview&&data.banner?.image)preview.src=data.banner.image;
+   showBannerMessage(`Banner ${index+1} salvo com sucesso.`);
+  }catch(e){showBannerMessage(e.message,true)}finally{btn.disabled=false}
+ }));
+}
+
+function compressBanner(file){
+ return new Promise((resolve,reject)=>{
+  if(!file.type.startsWith("image/")){reject(new Error("Escolha um arquivo de imagem."));return}
+  const reader=new FileReader();
+  reader.onerror=()=>reject(new Error("Não foi possível ler a imagem."));
+  reader.onload=()=>{
+   const img=new Image(); img.onerror=()=>reject(new Error("Não foi possível processar a imagem."));
+   img.onload=()=>{
+    const maxWidth=1800,maxHeight=900,scale=Math.min(1,maxWidth/img.naturalWidth,maxHeight/img.naturalHeight);
+    const canvas=document.createElement("canvas"); canvas.width=Math.max(1,Math.round(img.naturalWidth*scale)); canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+    resolve(canvas.toDataURL("image/jpeg",.82));
+   }; img.src=reader.result;
+  }; reader.readAsDataURL(file);
+ });
+}
+
+async function loadBanners(){
+ try{
+  const data=await api("/api/banners");
+  renderBanners(data.banners||[]);
+ }catch(e){showBannerMessage(e.message,true)}
+}
+
+refreshBannersBtn?.addEventListener("click",loadBanners);
