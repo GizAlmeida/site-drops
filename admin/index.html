@@ -66,6 +66,16 @@
 <div class="catalog-status" id="catalogStatus"></div>
 <div class="table-wrap"><table class="admin-table"><thead><tr><th>Foto</th><th>Produto</th><th>Marca</th><th>Categoria</th><th>Volume</th><th>Preço</th><th>Estoque</th><th>Ação</th></tr></thead><tbody id="productsBody"></tbody></table></div>
 </section>
+
+<section class="admin-panel banner-panel">
+<div class="panel-heading">
+<div><p class="eyebrow">APARÊNCIA DA LOJA</p><h3>Banners</h3><p>Troque a imagem de cada banner e escolha a categoria para a qual ele deve levar o cliente.</p></div>
+<button type="button" class="btn-outline" id="refreshBannersBtn">Atualizar</button>
+</div>
+<div id="bannerMessage" class="message" role="alert" aria-live="polite"></div>
+<div id="bannersAdminGrid" class="banners-admin-grid"></div>
+</section>
+
 <div class="security-note"><strong>Segurança:</strong><p>O navegador público apenas consulta os produtos. Cadastro, importação e remoção passam pela sessão administrativa do servidor.</p></div>
 </section>
 </main>

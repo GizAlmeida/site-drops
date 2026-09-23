@@ -935,6 +935,152 @@ function getOrder(req, res, orderNsu) {
     }
 }
 
+const ORDER_STATUSES = new Set([
+    "aguardando_pagamento",
+    "pago",
+    "pedido_confirmado",
+    "em_preparacao",
+    "enviado",
+    "entregue",
+    "cancelado"
+]);
+
+function normalizeOrderStatus(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
+function orderMatchesSearch(order, search) {
+    if (!search) return true;
+    const customer = order?.customer || {};
+    const haystack = [
+        order?.order_nsu,
+        customer?.name,
+        customer?.email,
+        customer?.phone_number,
+        customer?.phone,
+        order?.status
+    ].map(value => String(value || "").toLowerCase());
+    return haystack.some(value => value.includes(search));
+}
+
+function adminOrdersList(req, res) {
+    if (!requireAdmin(req, res)) return;
+
+    try {
+        const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+        const status = normalizeOrderStatus(url.searchParams.get("status"));
+        const search = String(url.searchParams.get("q") || "").trim().toLowerCase();
+
+        let orders = readOrdersFile();
+
+        if (status) orders = orders.filter(order => normalizeOrderStatus(order.status) === status);
+        if (search) orders = orders.filter(order => orderMatchesSearch(order, search));
+
+        orders.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+        return sendJson(res, 200, {
+            orders,
+            total: orders.length,
+            statuses: [...ORDER_STATUSES]
+        });
+    } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+    }
+}
+
+function adminOrderDetail(req, res, orderNsu) {
+    if (!requireAdmin(req, res)) return;
+
+    try {
+        const order = readOrdersFile().find(item => item.order_nsu === String(orderNsu || ""));
+        if (!order) return sendJson(res, 404, { error: "Pedido não encontrado." });
+        return sendJson(res, 200, { order, statuses: [...ORDER_STATUSES] });
+    } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+    }
+}
+
+async function adminOrderStatusUpdate(req, res, orderNsu) {
+    if (!requireAdmin(req, res)) return;
+
+    let payload;
+    try {
+        payload = await readJson(req, 10000);
+    } catch (error) {
+        return sendJson(res, 400, { error: error.message });
+    }
+
+    const status = normalizeOrderStatus(payload?.status);
+    if (!ORDER_STATUSES.has(status)) {
+        return sendJson(res, 400, {
+            error: "Status de pedido inválido.",
+            statuses: [...ORDER_STATUSES]
+        });
+    }
+
+    try {
+        const orders = readOrdersFile();
+        const index = orders.findIndex(item => item.order_nsu === String(orderNsu || ""));
+
+        if (index < 0) return sendJson(res, 404, { error: "Pedido não encontrado." });
+
+        orders[index] = {
+            ...orders[index],
+            status,
+            updatedAt: new Date().toISOString()
+        };
+
+        writeOrdersFile(orders);
+        return sendJson(res, 200, { ok: true, order: orders[index] });
+    } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+    }
+}
+
+function getCustomerOrders(req, res) {
+    const session = getCustomerSession(req);
+    if (!session) {
+        return sendJson(res, 401, { authenticated: false, error: "Faça login para consultar seus pedidos." });
+    }
+
+    try {
+        const customer = getCustomerById(session.customerId);
+        if (!customer) {
+            return sendJson(res, 401, { authenticated: false, error: "Sessão do cliente inválida." });
+        }
+
+        const email = normalizeCustomerEmail(customer.email);
+        const orders = readOrdersFile()
+            .filter(order => normalizeCustomerEmail(order?.customer?.email) === email)
+            .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+        return sendJson(res, 200, { orders });
+    } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+    }
+}
+
+function getCustomerOrder(req, res, orderNsu) {
+    const session = getCustomerSession(req);
+    if (!session) {
+        return sendJson(res, 401, { authenticated: false, error: "Faça login para consultar seu pedido." });
+    }
+
+    try {
+        const customer = getCustomerById(session.customerId);
+        const email = normalizeCustomerEmail(customer?.email);
+        const order = readOrdersFile().find(item =>
+            item.order_nsu === String(orderNsu || "") &&
+            normalizeCustomerEmail(item?.customer?.email) === email
+        );
+
+        if (!order) return sendJson(res, 404, { error: "Pedido não encontrado." });
+        return sendJson(res, 200, { order });
+    } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+    }
+}
+
 async function calculateFreight(req, res) {
     if (!SUPERFRETE_TOKEN) {
         return sendJson(res, 500, {
@@ -1176,6 +1322,160 @@ function normalizeProduct(input, existingId = null) {
     };
 }
 
+/* =========================================================
+   BANNERS — APARÊNCIA DA LOJA
+   Os banners ficam no servidor para que o painel administrativo
+   seja a fonte oficial das imagens e destinos.
+   ========================================================= */
+const BANNERS_FILE = path.join(ROOT, "data", "banners.json");
+const DEFAULT_BANNERS = [
+    { image: "imgs/banner1.jpg", category: "" },
+    { image: "imgs/banner2.jpg", category: "" },
+    { image: "imgs/banner3.jpg", category: "" },
+    { image: "imgs/banner4.jpg", category: "" }
+];
+
+const BANNER_CATEGORIES = new Set([
+    "",
+    "brand-masc",
+    "brand-fem",
+    "arabe-masc",
+    "arabe-fem",
+    "body-splash",
+    "arabic-collection",
+    "kits",
+    "outlet"
+]);
+
+function ensureBannersFile() {
+    const dir = path.dirname(BANNERS_FILE);
+
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
+    if (!fs.existsSync(BANNERS_FILE)) {
+        fs.writeFileSync(
+            BANNERS_FILE,
+            JSON.stringify(DEFAULT_BANNERS, null, 2),
+            "utf8"
+        );
+    }
+}
+
+function readBannersFile() {
+    ensureBannersFile();
+
+    try {
+        const parsed = JSON.parse(fs.readFileSync(BANNERS_FILE, "utf8"));
+        if (!Array.isArray(parsed)) throw new Error("Formato inválido.");
+
+        return DEFAULT_BANNERS.map((item, index) => ({
+            ...item,
+            ...(parsed[index] || {})
+        }));
+    } catch (error) {
+        console.error("Erro ao ler banners:", error);
+        throw new Error("Não foi possível ler os banners.");
+    }
+}
+
+function writeBannersFile(banners) {
+    ensureBannersFile();
+
+    const tempFile = `${BANNERS_FILE}.${process.pid}.${Date.now()}.tmp`;
+
+    fs.writeFileSync(
+        tempFile,
+        JSON.stringify(banners, null, 2),
+        "utf8"
+    );
+
+    fs.renameSync(tempFile, BANNERS_FILE);
+}
+
+function bannersPublic(req, res) {
+    try {
+        return sendJson(res, 200, {
+            source: "server",
+            banners: readBannersFile()
+        });
+    } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+    }
+}
+
+async function adminBannerUpdate(req, res, index) {
+    if (!requireAdmin(req, res)) return;
+
+    const bannerIndex = Number(index);
+
+    if (!Number.isInteger(bannerIndex) || bannerIndex < 0 || bannerIndex >= DEFAULT_BANNERS.length) {
+        return sendJson(res, 400, { error: "Índice de banner inválido." });
+    }
+
+    let payload;
+
+    try {
+        // A imagem é enviada como data URL depois de ser comprimida no navegador.
+        payload = await readJson(req, 8 * 1024 * 1024);
+    } catch (error) {
+        return sendJson(res, 400, { error: error.message });
+    }
+
+    const category = String(payload?.category ?? "").trim();
+    const image = payload?.image === undefined
+        ? undefined
+        : String(payload.image || "").trim();
+
+    if (!BANNER_CATEGORIES.has(category)) {
+        return sendJson(res, 400, { error: "Categoria de destino inválida." });
+    }
+
+    if (image !== undefined) {
+        if (!image) {
+            return sendJson(res, 400, { error: "A imagem do banner é obrigatória." });
+        }
+
+        // Aceita imagens enviadas pelo painel como data URL ou caminhos locais
+        // já existentes no projeto. Limita o payload para evitar arquivos acidentais.
+        const validDataUrl = /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(image);
+        const validLocalPath = /^(?:\.\/)?imgs\/[^\\/]+\.(?:jpe?g|png|webp)$/i.test(image);
+
+        if (!validDataUrl && !validLocalPath) {
+            return sendJson(res, 400, {
+                error: "Formato de imagem inválido. Selecione uma imagem pelo painel."
+            });
+        }
+
+        if (image.length > 7_000_000) {
+            return sendJson(res, 400, {
+                error: "A imagem é muito grande. Use uma imagem mais leve."
+            });
+        }
+    }
+
+    try {
+        const banners = readBannersFile();
+        banners[bannerIndex] = {
+            ...banners[bannerIndex],
+            category,
+            ...(image !== undefined ? { image } : {})
+        };
+
+        writeBannersFile(banners);
+
+        return sendJson(res, 200, {
+            ok: true,
+            banner: banners[bannerIndex],
+            banners
+        });
+    } catch (error) {
+        console.error("Erro ao salvar banner:", error);
+        return sendJson(res, 500, { error: "Não foi possível salvar o banner." });
+    }
+}
+
 function productsPublic(req, res) {
     try {
         return sendJson(res, 200, {
@@ -1396,6 +1696,32 @@ const server = http.createServer(async (req, res) => {
         return infinitePayWebhook(req, res);
     }
 
+    if (req.method === "GET" && pathname.startsWith("/api/admin/orders/") && pathname.endsWith("/status")) {
+        const orderNsu = pathname.slice("/api/admin/orders/".length, -"/status".length);
+        return adminOrderStatusUpdate(req, res, decodeURIComponent(orderNsu));
+    }
+
+    if (req.method === "PATCH" && pathname.startsWith("/api/admin/orders/") && pathname.endsWith("/status")) {
+        const orderNsu = pathname.slice("/api/admin/orders/".length, -"/status".length);
+        return adminOrderStatusUpdate(req, res, decodeURIComponent(orderNsu));
+    }
+
+    if (req.method === "GET" && pathname === "/api/admin/orders") {
+        return adminOrdersList(req, res);
+    }
+
+    if (req.method === "GET" && pathname.startsWith("/api/admin/orders/")) {
+        return adminOrderDetail(req, res, decodeURIComponent(pathname.slice("/api/admin/orders/".length)));
+    }
+
+    if (req.method === "GET" && pathname === "/api/customer/orders") {
+        return getCustomerOrders(req, res);
+    }
+
+    if (req.method === "GET" && pathname.startsWith("/api/customer/orders/")) {
+        return getCustomerOrder(req, res, decodeURIComponent(pathname.slice("/api/customer/orders/".length)));
+    }
+
     if (req.method === "GET" && pathname.startsWith("/api/orders/")) {
         return getOrder(req, res, pathname.slice("/api/orders/".length));
     }
@@ -1434,6 +1760,18 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && pathname === "/api/customer/logout") {
         return customerLogout(req, res);
+    }
+
+    if (req.method === "GET" && pathname === "/api/banners") {
+        return bannersPublic(req, res);
+    }
+
+    if (
+        req.method === "POST" &&
+        pathname.startsWith("/api/admin/banners/")
+    ) {
+        const index = pathname.slice("/api/admin/banners/".length);
+        return adminBannerUpdate(req, res, index);
     }
 
     if (req.method === "GET" && pathname === "/api/products") {
