@@ -4857,3 +4857,90 @@ footer {
     .customer-form-grid.three { grid-template-columns: 1fr; }
     .customer-welcome h3 { font-size: 27px; }
 }
+
+/* =========================================================
+   GALERIA — FOTOS DO PRODUTO
+   ========================================================= */
+
+.product-gallery{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+}
+
+.product-gallery-main{
+    width:100%;
+    min-height:390px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.product-gallery-main img{
+    display:block;
+    width:100%;
+    height:390px;
+    max-height:440px;
+    object-fit:contain;
+    object-position:center;
+    padding:10px;
+}
+
+.product-gallery-thumbs{
+    width:100%;
+    display:flex;
+    justify-content:center;
+    gap:10px;
+}
+
+.product-gallery-thumb{
+    width:72px;
+    height:72px;
+    padding:3px;
+    border:1px solid rgba(73,57,44,.16);
+    border-radius:8px;
+    background:#fff;
+    cursor:pointer;
+    transition:border-color .2s ease, transform .2s ease;
+}
+
+.product-gallery-thumb:hover{
+    transform:translateY(-2px);
+}
+
+.product-gallery-thumb.is-active{
+    border-color:var(--gold);
+}
+
+.product-gallery-thumb img{
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    border-radius:5px;
+}
+
+.product-gallery-empty{
+    width:100%;
+    min-height:390px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+@media (max-width:700px){
+    .product-gallery-main{
+        min-height:300px;
+    }
+
+    .product-gallery-main img{
+        height:300px;
+    }
+
+    .product-gallery-thumb{
+        width:62px;
+        height:62px;
+    }
+}
