@@ -31,7 +31,26 @@
 <div class="header-actions"><a class="btn-outline" href="../index.html">Ver loja</a><button type="button" class="btn-outline" id="logoutBtn">Sair</button></div>
 </header>
 
-<section class="admin-panel">
+
+<nav class="admin-section-nav" aria-label="Seções do painel">
+  <button type="button" class="admin-section-tab is-active" data-admin-section="catalogo">
+    <span class="admin-section-icon">📦</span>
+    <span><strong>Catálogo</strong><small>Produtos e estoque</small></span>
+    <span class="admin-section-arrow">›</span>
+  </button>
+  <button type="button" class="admin-section-tab" data-admin-section="vendas">
+    <span class="admin-section-icon">🛒</span>
+    <span><strong>Vendas</strong><small>Pedidos e clientes</small></span>
+    <span class="admin-section-arrow">›</span>
+  </button>
+  <button type="button" class="admin-section-tab" data-admin-section="aparencia">
+    <span class="admin-section-icon">🎨</span>
+    <span><strong>Aparência</strong><small>Banners e visual da loja</small></span>
+    <span class="admin-section-arrow">›</span>
+  </button>
+</nav>
+
+<section class="admin-panel admin-section-panel" data-admin-panel="catalogo">
 <div class="panel-heading">
 <div><p class="eyebrow">CATÁLOGO</p><h3>Produtos</h3><p>Cadastre e remova produtos. As alterações ficam salvas no servidor e aparecem na loja pública.</p></div>
 <button type="button" class="btn-outline" id="refreshProductsBtn">Atualizar</button>
@@ -58,7 +77,36 @@
 </div>
 <label for="newDesc">Descrição</label><textarea id="newDesc" rows="4" placeholder="Descreva a fragrância, família olfativa, fixação e características."></textarea>
 <div class="checks"><label><input type="checkbox" id="newIsLaunch" checked> Exibir em <strong>Lançamentos</strong></label><label><input type="checkbox" id="newIsFeatured"> Marcar como <strong>Destaque</strong></label></div>
-<div class="photo-upload"><label for="newImage">Foto do produto</label><input type="file" id="newImage" accept="image/*"><div id="photoPreview" class="photo-preview">Nenhuma foto selecionada</div></div>
+<div class="photo-upload">
+<label>Fotos do produto <span class="optional">(até 3 fotos)</span></label>
+<p class="photo-help">Adicione até 3 imagens. A primeira será a foto principal do produto.</p>
+<div class="product-photo-slots">
+  <div class="product-photo-slot">
+    <div class="photo-slot-preview" id="photoPreview1">Foto 1</div>
+    <input type="file" id="newImage1" accept="image/*" hidden>
+    <div class="photo-slot-actions">
+      <button type="button" class="btn-outline small" id="chooseImageBtn1">Escolher foto</button>
+      <button type="button" class="remove-photo-btn" id="removeImageBtn1" hidden>Remover</button>
+    </div>
+  </div>
+  <div class="product-photo-slot">
+    <div class="photo-slot-preview" id="photoPreview2">Foto 2</div>
+    <input type="file" id="newImage2" accept="image/*" hidden>
+    <div class="photo-slot-actions">
+      <button type="button" class="btn-outline small" id="chooseImageBtn2">Escolher foto</button>
+      <button type="button" class="remove-photo-btn" id="removeImageBtn2" hidden>Remover</button>
+    </div>
+  </div>
+  <div class="product-photo-slot">
+    <div class="photo-slot-preview" id="photoPreview3">Foto 3</div>
+    <input type="file" id="newImage3" accept="image/*" hidden>
+    <div class="photo-slot-actions">
+      <button type="button" class="btn-outline small" id="chooseImageBtn3">Escolher foto</button>
+      <button type="button" class="remove-photo-btn" id="removeImageBtn3" hidden>Remover</button>
+    </div>
+  </div>
+</div>
+</div>
 <button type="submit" class="btn-primary">Cadastrar produto</button>
 <p id="productMessage" class="message" role="alert" aria-live="polite"></p>
 </form>
@@ -67,7 +115,7 @@
 <div class="table-wrap"><table class="admin-table"><thead><tr><th>Foto</th><th>Produto</th><th>Marca</th><th>Categoria</th><th>Volume</th><th>Preço</th><th>Estoque</th><th>Ação</th></tr></thead><tbody id="productsBody"></tbody></table></div>
 </section>
 
-<section class="admin-panel banner-panel">
+<section class="admin-panel banner-panel admin-section-panel" data-admin-panel="aparencia">
 <div class="panel-heading">
 <div><p class="eyebrow">APARÊNCIA DA LOJA</p><h3>Banners</h3><p>Troque a imagem de cada banner e escolha a categoria para a qual ele deve levar o cliente.</p></div>
 <button type="button" class="btn-outline" id="refreshBannersBtn">Atualizar</button>
@@ -75,6 +123,41 @@
 <div id="bannerMessage" class="message" role="alert" aria-live="polite"></div>
 <div id="bannersAdminGrid" class="banners-admin-grid"></div>
 </section>
+
+<section class="admin-panel orders-panel admin-section-panel" data-admin-panel="vendas">
+<div class="panel-heading">
+<div><p class="eyebrow">VENDAS</p><h3>Pedidos</h3><p>Consulte pedidos, abra os detalhes e atualize o status do atendimento.</p></div>
+<button type="button" class="btn-outline" id="refreshOrdersBtn">Atualizar</button>
+</div>
+
+<div class="orders-toolbar">
+<div class="orders-search"><label for="ordersSearch">Buscar</label><input id="ordersSearch" type="search" placeholder="Pedido, cliente, e-mail ou telefone"></div>
+<div class="orders-filter"><label for="ordersStatusFilter">Status</label><select id="ordersStatusFilter">
+<option value="">Todos os status</option>
+<option value="aguardando_pagamento">Aguardando pagamento</option>
+<option value="pago">Pago</option>
+<option value="pedido_confirmado">Pedido confirmado</option>
+<option value="em_preparacao">Em preparação</option>
+<option value="enviado">Enviado</option>
+<option value="entregue">Entregue</option>
+<option value="cancelado">Cancelado</option>
+</select></div>
+</div>
+
+<div id="ordersMessage" class="message" role="alert" aria-live="polite"></div>
+<div class="orders-status" id="ordersStatus"></div>
+<div class="table-wrap"><table class="admin-table orders-table"><thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Total</th><th>Entrega</th><th>Status</th><th>Ação</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+</section>
+
+<div class="order-modal" id="orderModal" hidden>
+<div class="order-modal-backdrop" data-order-close></div>
+<div class="order-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle">
+<div class="order-modal-header"><div><p class="eyebrow">DETALHES DO PEDIDO</p><h3 id="orderModalTitle">Pedido</h3></div><button type="button" class="modal-close" id="closeOrderModalBtn" aria-label="Fechar">×</button></div>
+<div id="orderModalBody" class="order-modal-body"></div>
+<div id="orderModalMessage" class="message" role="alert" aria-live="polite"></div>
+<div class="order-modal-footer"><button type="button" class="btn-outline" id="cancelOrderModalBtn">Fechar</button><button type="button" class="btn-primary small" id="saveOrderStatusBtn">Salvar status</button></div>
+</div>
+</div>
 
 <div class="security-note"><strong>Segurança:</strong><p>O navegador público apenas consulta os produtos. Cadastro, importação e remoção passam pela sessão administrativa do servidor.</p></div>
 </section>

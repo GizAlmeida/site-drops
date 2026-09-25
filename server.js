@@ -1266,7 +1266,21 @@ function normalizeProduct(input, existingId = null) {
     const originalPrice = Number(input?.originalPrice || 0);
     const stock = Number(input?.stock || 0);
     const desc = String(input?.desc || "").trim();
-    const image = String(input?.image || "");
+
+    const legacyImage = String(input?.image || "");
+    const rawImages = Array.isArray(input?.images)
+        ? input.images
+        : [];
+
+    const images = rawImages
+        .map(item => String(item || ""))
+        .filter(Boolean)
+        .slice(0, 3);
+
+    if (!images.length && legacyImage) {
+        images.push(legacyImage);
+    }
+
     const isLaunch = Boolean(input?.isLaunch);
     const isFeatured = Boolean(input?.isFeatured);
 
@@ -1298,8 +1312,14 @@ function normalizeProduct(input, existingId = null) {
         throw new Error("Preço original inválido.");
     }
 
-    if (image.length > 7_000_000) {
-        throw new Error("A imagem é muito grande. Use uma imagem mais leve.");
+    if (images.length > 3) {
+        throw new Error("Um produto pode ter no máximo 3 fotos.");
+    }
+
+    for (const image of images) {
+        if (image.length > 7_000_000) {
+            throw new Error("Uma das imagens é muito grande. Use imagens mais leves.");
+        }
     }
 
     return {
@@ -1318,7 +1338,8 @@ function normalizeProduct(input, existingId = null) {
         desc,
         isLaunch,
         isFeatured,
-        image
+        image: images[0] || "",
+        images
     };
 }
 
@@ -1418,7 +1439,7 @@ async function adminBannerUpdate(req, res, index) {
 
     try {
         // A imagem é enviada como data URL depois de ser comprimida no navegador.
-        payload = await readJson(req, 8 * 1024 * 1024);
+        payload = await readJson(req, 16 * 1024 * 1024);
     } catch (error) {
         return sendJson(res, 400, { error: error.message });
     }
@@ -1509,7 +1530,7 @@ async function adminProductCreate(req, res) {
     let payload;
 
     try {
-        payload = await readJson(req, 8 * 1024 * 1024);
+        payload = await readJson(req, 16 * 1024 * 1024);
     } catch (error) {
         return sendJson(res, 400, {
             error: error.message

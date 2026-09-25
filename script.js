@@ -482,8 +482,22 @@ function bottleIcon() {
    FOTO DO PRODUTO
    ========================================================= */
 
+function productImages(product) {
+  const images = Array.isArray(product?.images)
+    ? product.images.filter(Boolean).slice(0, 3)
+    : [];
+
+  if (!images.length && product?.image) {
+    images.push(product.image);
+  }
+
+  return images;
+}
+
 function productImageHTML(product, context = "card") {
-  if (product.image) {
+  const images = productImages(product);
+
+  if (images.length) {
     const className =
       context === "cart" ? "product-photo cart-photo" : "product-photo";
 
@@ -491,7 +505,7 @@ function productImageHTML(product, context = "card") {
 
             <img
                 class="${className}"
-                src="${product.image}"
+                src="${images[0]}"
                 alt="${escapeHTML(product.name)}"
                 loading="lazy"
             >
@@ -500,6 +514,64 @@ function productImageHTML(product, context = "card") {
   }
 
   return bottleIcon();
+}
+
+function productGalleryHTML(product) {
+  const images = productImages(product);
+
+  if (!images.length) {
+    return `<div class="product-gallery-empty">${bottleIcon()}</div>`;
+  }
+
+  return `
+    <div class="product-gallery">
+      <div class="product-gallery-main">
+        <img
+          id="productGalleryMain"
+          src="${images[0]}"
+          alt="${escapeHTML(product.name)}"
+        >
+      </div>
+      ${
+        images.length > 1
+          ? `<div class="product-gallery-thumbs" role="list">
+              ${images.map((image, index) => `
+                <button
+                  type="button"
+                  class="product-gallery-thumb ${index === 0 ? "is-active" : ""}"
+                  data-gallery-index="${index}"
+                  aria-label="Ver foto ${index + 1}"
+                >
+                  <img src="${image}" alt="" loading="lazy">
+                </button>
+              `).join("")}
+             </div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function initializeProductGallery(product) {
+  const media = document.getElementById("productModalMedia");
+  const main = document.getElementById("productGalleryMain");
+
+  if (!media || !main) return;
+
+  const images = productImages(product);
+
+  media.querySelectorAll("[data-gallery-index]").forEach(button => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.galleryIndex);
+      if (!images[index]) return;
+
+      main.src = images[index];
+
+      media.querySelectorAll("[data-gallery-index]").forEach(item => {
+        item.classList.toggle("is-active", item === button);
+      });
+    });
+  });
 }
 
 /* =========================================================
@@ -2493,7 +2565,8 @@ function openProductDetails(productId) {
   activeProductDetailsId = product.id;
 
   if (media) {
-    media.innerHTML = productImageHTML(product, "modal");
+    media.innerHTML = productGalleryHTML(product);
+    initializeProductGallery(product);
   }
 
   if (category) {
