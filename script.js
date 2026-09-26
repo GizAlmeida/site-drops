@@ -3088,6 +3088,195 @@ function customerAddressSummary(address) {
   return `<div class="customer-address-summary"><strong>${customerEscape(address.cep ? formatCustomerCep(address.cep) : "Endereço salvo")}</strong><span>${customerEscape(line1)}</span><span>${customerEscape(line2)}</span></div>`;
 }
 
+
+function formatCustomerOrderMoney(valueInCents) {
+  const value = Number(valueInCents || 0) / 100;
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function formatCustomerOrderDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Data não informada";
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function customerOrderStatusLabel(status) {
+  const labels = {
+    aguardando_pagamento: "Aguardando pagamento",
+    pago: "Pagamento aprovado",
+    pedido_confirmado: "Pedido confirmado",
+    em_preparacao: "Em preparação",
+    enviado: "Enviado",
+    entregue: "Entregue",
+    cancelado: "Cancelado",
+  };
+  return labels[String(status || "").toLowerCase()] || "Em processamento";
+}
+
+function customerOrderDeliveryLabel(order) {
+  if (order?.delivery === "correios") {
+    const service = String(order?.freight?.service || "");
+    return service === "2" ? "Correios — SEDEX" : "Correios — PAC";
+  }
+  if (order?.delivery === "uber") return "Entrega local";
+  if (order?.delivery === "retirada") return "Retirada";
+  return "Não informado";
+}
+
+function customerOrderPaymentLabel(order) {
+  const method = String(order?.capture_method || "").toLowerCase();
+  if (method === "pix") return "PIX";
+  if (method === "card" || method === "credit_card" || method === "credit-card") return "Cartão";
+  if (method) return method.toUpperCase();
+  return order?.status === "aguardando_pagamento" ? "Aguardando pagamento" : "Não informado";
+}
+
+function customerOrderAddressHTML(address) {
+  if (!address) return `<span>Endereço não informado.</span>`;
+  const line1 = `${address.street || ""}, ${address.number || ""}${address.complement ? ` — ${address.complement}` : ""}`;
+  const line2 = `${address.neighborhood || ""} · ${address.city || ""}/${address.state || ""}`;
+  const cep = address.cep ? formatCustomerCep(address.cep) : "";
+  return `
+    <span>${customerEscape(line1)}</span>
+    <span>${customerEscape(line2)}${cep ? ` · CEP ${customerEscape(cep)}` : ""}</span>
+  `;
+}
+
+function customerOrderDetailsHTML(order) {
+  const products = Array.isArray(order?.store_items) ? order.store_items : [];
+  const freight = Number(order?.freight?.price || 0);
+  const productsTotal = products.reduce(
+    (sum, item) => sum + Number(item?.unitPrice || 0) * Number(item?.quantity || 0),
+    0,
+  );
+
+  return `
+    <div class="customer-order-details">
+      <div class="customer-order-detail-block">
+        <strong>Produtos</strong>
+        ${
+          products.length
+            ? products.map((item) => `
+                <div class="customer-order-product">
+                  <span>${customerEscape(item?.name || "Produto")} × ${Number(item?.quantity || 0)}</span>
+                  <span>${formatCustomerOrderMoney(Number(item?.unitPrice || 0) * 100 * Number(item?.quantity || 0))}</span>
+                </div>
+              `).join("")
+            : `<span>Nenhum produto registrado.</span>`
+        }
+        <div class="customer-order-product customer-order-subtotal">
+          <span>Subtotal</span>
+          <span>${formatCustomerOrderMoney(productsTotal * 100)}</span>
+        </div>
+      </div>
+
+      <div class="customer-order-detail-grid">
+        <div class="customer-order-detail-block">
+          <strong>Entrega</strong>
+          <span>${customerEscape(customerOrderDeliveryLabel(order))}</span>
+          ${freight > 0 ? `<span>Frete: ${formatCustomerOrderMoney(freight * 100)}</span>` : `<span>Frete: Grátis</span>`}
+        </div>
+
+        <div class="customer-order-detail-block">
+          <strong>Pagamento</strong>
+          <span>${customerEscape(customerOrderPaymentLabel(order))}</span>
+        </div>
+      </div>
+
+      <div class="customer-order-detail-block">
+        <strong>Endereço de entrega</strong>
+        ${customerOrderAddressHTML(order?.address)}
+      </div>
+    </div>
+  `;
+}
+
+async function loadCustomerOrders() {
+  const container = document.getElementById("customerOrdersList");
+  if (!container) return;
+
+  container.innerHTML = `<div class="customer-orders-loading">Carregando seus pedidos...</div>`;
+
+  try {
+    const result = await customerRequest("/api/customer/orders", {
+      method: "GET",
+      headers: {},
+    });
+
+    const orders = Array.isArray(result?.orders) ? result.orders : [];
+
+    if (!orders.length) {
+      container.innerHTML = `
+        <div class="customer-orders-empty">
+          <strong>Você ainda não possui pedidos.</strong>
+          <span>Seus pedidos aparecerão aqui depois que uma compra for registrada para esta conta.</span>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = orders.map((order, index) => {
+      const status = String(order?.status || "").toLowerCase();
+      const total = formatCustomerOrderMoney(order?.amount || 0);
+      return `
+        <article class="customer-order-card">
+          <div class="customer-order-head">
+            <div>
+              <span class="customer-order-number">Pedido ${customerEscape(order?.order_nsu || "—")}</span>
+              <span class="customer-order-date">${customerEscape(formatCustomerOrderDate(order?.createdAt))}</span>
+            </div>
+            <span class="customer-order-status customer-order-status-${customerEscape(status)}">${customerEscape(customerOrderStatusLabel(status))}</span>
+          </div>
+
+          <div class="customer-order-summary">
+            <span>${Array.isArray(order?.store_items) ? order.store_items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0) : 0} item(ns)</span>
+            <strong>${total}</strong>
+          </div>
+
+          <button type="button" class="customer-order-toggle" data-order-index="${index}" aria-expanded="false">
+            Ver detalhes
+          </button>
+
+          <div class="customer-order-detail-slot" id="customerOrderDetail${index}" hidden></div>
+        </article>
+      `;
+    }).join("");
+
+    container.querySelectorAll(".customer-order-toggle").forEach((button) => {
+      button.addEventListener("click", () => {
+        const index = Number(button.dataset.orderIndex);
+        const order = orders[index];
+        const detail = document.getElementById(`customerOrderDetail${index}`);
+        if (!detail || !order) return;
+
+        const open = button.getAttribute("aria-expanded") === "true";
+        button.setAttribute("aria-expanded", open ? "false" : "true");
+        button.textContent = open ? "Ver detalhes" : "Ocultar detalhes";
+
+        if (!open) {
+          detail.innerHTML = customerOrderDetailsHTML(order);
+          detail.hidden = false;
+        } else {
+          detail.hidden = true;
+        }
+      });
+    });
+  } catch (error) {
+    container.innerHTML = `
+      <div class="customer-orders-empty customer-orders-error">
+        <strong>Não foi possível carregar seus pedidos.</strong>
+        <span>${customerEscape(error.message || "Tente novamente.")}</span>
+      </div>
+    `;
+  }
+}
+
 function renderCustomerAuth() {
   const body = document.getElementById("customerBody");
   if (!body) return;
@@ -3252,6 +3441,16 @@ function renderCustomerAccount() {
 
                 ${customerAddressSummary(address)}
 
+                <section class="customer-orders-section" aria-labelledby="customerOrdersTitle">
+                    <div class="customer-section-head">
+                        <div>
+                            <h4 id="customerOrdersTitle">Meus pedidos</h4>
+                            <p>Acompanhe seus pedidos, pagamentos, entrega e endereço.</p>
+                        </div>
+                    </div>
+                    <div id="customerOrdersList" class="customer-orders-list"></div>
+                </section>
+
                 <form class="customer-form" id="customerAddressForm">
                     <div class="field-wrap">
                         <label for="customerCep">CEP</label>
@@ -3301,6 +3500,8 @@ function renderCustomerAccount() {
             <button type="button" class="btn customer-logout" id="customerLogoutBtn">Sair da conta</button>
         </div>
     `;
+
+  loadCustomerOrders();
 
   const cep = document.getElementById("customerCep");
   if (cep) {
