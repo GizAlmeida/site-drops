@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Área da Loja — Drops de Luxo</title>
 <link rel="stylesheet" href="admin.css">
+<style>.admin-section-panel[hidden]{display:none!important}.family-products-list{display:grid;gap:8px;max-height:320px;overflow:auto;padding:12px;border:1px solid #ddd;border-radius:8px}.family-product-option{display:flex;gap:8px;align-items:center}.family-product-option small{margin-left:auto;opacity:.7}</style>
 </head>
 <body>
 <main class="admin-page">
@@ -33,24 +34,29 @@
 
 
 <nav class="admin-section-nav" aria-label="Seções do painel">
-  <button type="button" class="admin-section-tab is-active" data-admin-section="catalogo">
-    <span class="admin-section-icon">📦</span>
-    <span><strong>Catálogo</strong><small>Produtos e estoque</small></span>
-    <span class="admin-section-arrow">›</span>
+  <button type="button" class="admin-section-tab is-active" data-admin-section="catalogo" data-admin-target="catalogo">
+    <span class="admin-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg></span>
+    <span class="admin-section-copy"><strong>Catálogo</strong><small>Produtos e estoque</small></span>
+    <span class="admin-section-arrow" aria-hidden="true">›</span>
   </button>
-  <button type="button" class="admin-section-tab" data-admin-section="vendas">
-    <span class="admin-section-icon">🛒</span>
-    <span><strong>Vendas</strong><small>Pedidos e clientes</small></span>
-    <span class="admin-section-arrow">›</span>
+  <button type="button" class="admin-section-tab" data-admin-section="vendas" data-admin-target="vendas">
+    <span class="admin-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 5h2l2 11h10l2-8H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg></span>
+    <span class="admin-section-copy"><strong>Vendas</strong><small>Pedidos e clientes</small></span>
+    <span class="admin-section-arrow" aria-hidden="true">›</span>
   </button>
-  <button type="button" class="admin-section-tab" data-admin-section="aparencia">
-    <span class="admin-section-icon">🎨</span>
-    <span><strong>Aparência</strong><small>Banners e visual da loja</small></span>
-    <span class="admin-section-arrow">›</span>
+  <button type="button" class="admin-section-tab" data-admin-section="familias-olfativas" data-admin-target="familias-olfativas">
+    <span class="admin-section-icon" aria-hidden="true">✿</span>
+    <span class="admin-section-copy"><strong>Famílias olfativas</strong><small>Gerenciar famílias e perfumes</small></span>
+    <span class="admin-section-arrow" aria-hidden="true">›</span>
+  </button>
+  <button type="button" class="admin-section-tab" data-admin-section="aparencia" data-admin-target="aparencia">
+    <span class="admin-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="1.5"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5 17 4.5-4 3.2 3 2.3-2.3L19 17"/></svg></span>
+    <span class="admin-section-copy"><strong>Aparência</strong><small>Banners e visual da loja</small></span>
+    <span class="admin-section-arrow" aria-hidden="true">›</span>
   </button>
 </nav>
 
-<section class="admin-panel admin-section-panel" data-admin-panel="catalogo">
+<section class="admin-panel admin-section-panel" id="catalogo" data-admin-panel="catalogo">
 <div class="panel-heading">
 <div><p class="eyebrow">CATÁLOGO</p><h3>Produtos</h3><p>Cadastre e remova produtos. As alterações ficam salvas no servidor e aparecem na loja pública.</p></div>
 <button type="button" class="btn-outline" id="refreshProductsBtn">Atualizar</button>
@@ -67,15 +73,16 @@
 <div><label for="newName">Nome do produto</label><input id="newName" required placeholder="Ex.: Khamrah"></div>
 <div><label for="newBrand">Marca</label><input id="newBrand" placeholder="Ex.: Lattafa"></div>
 <div><label for="newCat">Categoria</label><select id="newCat" required>
-<option value="brand-masc">Brand Collections Masc.</option><option value="brand-fem">Brand Collections Fem.</option><option value="arabe-masc">Perfumes Árabes Masc.</option><option value="arabe-fem">Perfumes Árabes Fem.</option><option value="body-splash">Body Splash</option><option value="arabic-collection">Arabic Collections</option><option value="kits">Kits</option><option value="outlet">Outlet</option>
+<option value="brand-masc">Brand Collections Masc.</option><option value="brand-fem">Brand Collections Fem.</option><option value="arabe-masc">Perfumes Árabes Masc.</option><option value="arabe-fem">Perfumes Árabes Fem.</option><option value="compartilhaveis">Compartilháveis</option><option value="infantil">Infantil</option><option value="body-splash">Body Splash</option><option value="arabic-collection">Arabic Collection</option><option value="kits">Kits</option><option value="outlet">Outlet</option><option value="decants">Decants</option>
 </select></div>
 <div><label for="newGender">Gênero</label><select id="newGender"><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="unissex">Unissex</option></select></div>
 <div><label for="newVolume">Volume (ml)</label><input id="newVolume" type="number" min="0" step="1" placeholder="100"></div>
-<div><label for="newPrice">Preço de venda</label><input id="newPrice" type="number" min="0" step="0.01" required placeholder="59.90"></div>
+<div id="newStandardPriceField"><label for="newPrice">Preço de venda</label><input id="newPrice" type="number" min="0" step="0.01" required placeholder="59.90"></div>
+<div id="newDecantPrices" class="decant-price-fields" hidden><div><label for="newDecantPrice5">Preço do frasco de 5 ml</label><input id="newDecantPrice5" type="number" min="0.01" step="0.01" placeholder="25.00"></div><div><label for="newDecantPrice10">Preço do frasco de 10 ml</label><input id="newDecantPrice10" type="number" min="0.01" step="0.01" placeholder="45.00"></div><small>Defina um preço para cada tamanho. A loja usará o valor correspondente à escolha do cliente.</small></div>
 <div><label for="newOriginalPrice">Preço original <span class="optional">(opcional)</span></label><input id="newOriginalPrice" type="number" min="0" step="0.01" placeholder="79.90"></div>
 <div><label for="newStock">Estoque</label><input id="newStock" type="number" min="0" step="1" value="1"></div>
 </div>
-<label for="newDesc">Descrição</label><textarea id="newDesc" rows="4" placeholder="Descreva a fragrância, família olfativa, fixação e características."></textarea>
+<label for="newDesc">Descrição</label><textarea id="newDesc" rows="4" placeholder="Descreva a fragrância, fixação e características."></textarea>
 <div class="checks"><label><input type="checkbox" id="newIsLaunch" checked> Exibir em <strong>Lançamentos</strong></label><label><input type="checkbox" id="newIsFeatured"> Marcar como <strong>Destaque</strong></label></div>
 <div class="photo-upload">
 <label>Fotos do produto <span class="optional">(até 3 fotos)</span></label>
@@ -112,10 +119,41 @@
 </form>
 
 <div class="catalog-status" id="catalogStatus"></div>
+<div class="admin-product-search"><label for="productsSearch">Pesquisar produto cadastrado</label><input id="productsSearch" type="search" placeholder="Digite o nome ou a marca do produto…" autocomplete="off"></div>
 <div class="table-wrap"><table class="admin-table"><thead><tr><th>Foto</th><th>Produto</th><th>Marca</th><th>Categoria</th><th>Volume</th><th>Preço</th><th>Estoque</th><th>Ação</th></tr></thead><tbody id="productsBody"></tbody></table></div>
+<div id="productsPagination" class="admin-pagination" aria-label="Paginação dos produtos"></div>
 </section>
 
-<section class="admin-panel banner-panel admin-section-panel" data-admin-panel="aparencia">
+<section class="admin-panel admin-section-panel" id="familias-olfativas" data-admin-panel="familias-olfativas">
+<div class="panel-heading"><div><p class="eyebrow">CATÁLOGO</p><h3>Famílias olfativas</h3><p>Cadastre famílias, descreva-as e associe os perfumes correspondentes.</p></div><button type="button" class="btn-outline" id="refreshOlfactoryFamiliesBtn">Atualizar</button></div>
+<form id="olfactoryFamilyForm" class="product-form">
+<input type="hidden" id="olfactoryFamilyId">
+<div class="form-grid">
+<div><label for="olfactoryFamilyName">Nome da família</label><input id="olfactoryFamilyName" required maxlength="80" placeholder="Ex.: Floral"></div>
+<div><label for="olfactoryFamilyOrder">Ordem de exibição</label><input id="olfactoryFamilyOrder" type="number" min="0" step="1" value="0"></div>
+<div class="edit-product-wide"><label for="olfactoryFamilyDescription">Descrição (opcional)</label><textarea id="olfactoryFamilyDescription" rows="3" maxlength="240" placeholder="Descreva as características desta família"></textarea></div>
+<div class="edit-product-wide"><label for="olfactoryFamilyImage">Imagem (opcional)</label><input id="olfactoryFamilyImage" type="file" accept="image/*"><small class="photo-help">A imagem será otimizada antes de ser salva.</small><div id="olfactoryFamilyImagePreview"></div></div>
+
+<div><label class="checks"><input type="checkbox" id="olfactoryFamilyActive" checked> Família ativa</label></div>
+</div>
+<div class="header-actions"><button type="submit" class="btn-primary" id="saveOlfactoryFamilyBtn">Salvar família</button><button type="button" class="btn-outline" id="cancelOlfactoryFamilyBtn" hidden>Cancelar edição</button></div>
+<p id="olfactoryFamilyMessage" class="message" role="alert" aria-live="polite"></p>
+</form>
+<div class="family-assignment-panel">
+<h4>Associar produto a uma família olfativa</h4>
+<p>Pesquise um produto do catálogo e selecione a família correspondente. A associação será salva sem precisar editar o produto.</p>
+<div class="form-grid family-assignment-grid">
+<div><label for="familyAssignmentSearch">Pesquisar produto</label><input id="familyAssignmentSearch" type="search" placeholder="Digite o nome do perfume…" autocomplete="off"></div>
+<div><label for="familyAssignmentProduct">Produto do catálogo</label><select id="familyAssignmentProduct"><option value="">Selecione um produto</option></select></div>
+<div><label for="familyAssignmentFamily">Família olfativa</label><select id="familyAssignmentFamily"><option value="">Selecione uma família</option></select></div>
+</div>
+<div class="header-actions"><button type="button" class="btn-primary" id="saveFamilyAssignmentBtn">Salvar associação</button></div>
+<p id="familyAssignmentMessage" class="message" role="status" aria-live="polite"></p>
+</div>
+<div id="olfactoryFamiliesList" class="table-wrap"></div>
+</section>
+
+<section class="admin-panel banner-panel admin-section-panel" id="aparencia" data-admin-panel="aparencia">
 <div class="panel-heading">
 <div><p class="eyebrow">APARÊNCIA DA LOJA</p><h3>Banners</h3><p>Troque a imagem de cada banner e escolha a categoria para a qual ele deve levar o cliente.</p></div>
 <button type="button" class="btn-outline" id="refreshBannersBtn">Atualizar</button>
@@ -124,12 +162,18 @@
 <div id="bannersAdminGrid" class="banners-admin-grid"></div>
 </section>
 
-<section class="admin-panel orders-panel admin-section-panel" data-admin-panel="vendas">
+<section class="admin-panel orders-panel admin-section-panel" id="vendas" data-admin-panel="vendas">
 <div class="panel-heading">
-<div><p class="eyebrow">VENDAS</p><h3>Pedidos</h3><p>Consulte pedidos, abra os detalhes e atualize o status do atendimento.</p></div>
-<button type="button" class="btn-outline" id="refreshOrdersBtn">Atualizar</button>
+<div><p class="eyebrow">VENDAS</p><h3>Pedidos e clientes</h3><p>Gerencie pedidos, clientes, endereços e histórico de compras.</p></div>
+<button type="button" class="btn-outline" id="refreshOrdersBtn">Atualizar pedidos</button>
 </div>
 
+<div class="sales-view-tabs" role="tablist" aria-label="Vendas">
+<button type="button" class="sales-view-tab is-active" data-sales-view="orders">Pedidos</button>
+<button type="button" class="sales-view-tab" data-sales-view="customers">Clientes</button>
+</div>
+
+<div id="salesOrdersView">
 <div class="orders-toolbar">
 <div class="orders-search"><label for="ordersSearch">Buscar</label><input id="ordersSearch" type="search" placeholder="Pedido, cliente, e-mail ou telefone"></div>
 <div class="orders-filter"><label for="ordersStatusFilter">Status</label><select id="ordersStatusFilter">
@@ -142,12 +186,49 @@
 <option value="entregue">Entregue</option>
 <option value="cancelado">Cancelado</option>
 </select></div>
+<div class="orders-filter"><label for="ordersPeriodFilter">Período</label><select id="ordersPeriodFilter">
+<option value="month">Este mês</option>
+<option value="3months">Últimos 3 meses</option>
+<option value="6months">Últimos 6 meses</option>
+<option value="year">Este ano</option>
+</select></div>
 </div>
 
 <div id="ordersMessage" class="message" role="alert" aria-live="polite"></div>
 <div class="orders-status" id="ordersStatus"></div>
 <div class="table-wrap"><table class="admin-table orders-table"><thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Total</th><th>Entrega</th><th>Status</th><th>Ação</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+<div id="ordersPagination" class="admin-pagination" aria-label="Paginação dos pedidos"></div>
+</div>
+
+<div id="salesCustomersView" class="sales-customers-view" hidden>
+<div class="customers-toolbar">
+<div class="customers-search"><label for="customersSearch">Buscar cliente</label><input id="customersSearch" type="search" placeholder="Nome, e-mail ou telefone"></div>
+<button type="button" class="btn-outline" id="refreshCustomersBtn">Atualizar clientes</button>
+</div>
+<div id="customersMessage" class="message" role="alert" aria-live="polite"></div>
+<div class="customers-status" id="customersStatus"></div>
+<div class="table-wrap"><table class="admin-table customers-table"><thead><tr><th>Cliente</th><th>E-mail</th><th>Telefone</th><th>Cadastro</th><th>Pedidos</th><th>Ação</th></tr></thead><tbody id="customersBody"></tbody></table></div>
+<div id="customersPagination" class="admin-pagination" aria-label="Paginação dos clientes"></div>
+</div>
 </section>
+
+<div class="customer-modal" id="customerModal" hidden>
+<div class="customer-modal-backdrop" data-customer-close></div>
+<div class="customer-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="customerModalTitle">
+<div class="order-modal-header"><div><p class="eyebrow">DETALHES DO CLIENTE</p><h3 id="customerModalTitle">Cliente</h3></div><button type="button" class="modal-close" id="closeCustomerModalBtn" aria-label="Fechar">×</button></div>
+<div id="customerModalBody" class="customer-modal-body"></div>
+<div class="order-modal-footer"><button type="button" class="btn-outline" id="cancelCustomerModalBtn">Fechar</button></div>
+</div>
+</div>
+
+<div class="product-edit-modal" id="productEditModal" hidden>
+<div class="product-edit-backdrop" data-product-edit-close></div>
+<div class="product-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="productEditTitle">
+<div class="order-modal-header"><div><p class="eyebrow">CATÁLOGO</p><h3 id="productEditTitle">Editar produto</h3></div><button type="button" class="modal-close" id="closeProductEditBtn" aria-label="Fechar">×</button></div>
+<div id="productEditBody" class="product-edit-body"></div>
+<div class="order-modal-footer"><button type="button" class="btn-outline" id="cancelProductEditBtn">Cancelar</button><button type="button" class="btn-primary small" id="saveProductEditBtn">Salvar alterações</button></div>
+</div>
+</div>
 
 <div class="order-modal" id="orderModal" hidden>
 <div class="order-modal-backdrop" data-order-close></div>

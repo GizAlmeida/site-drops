@@ -55,13 +55,52 @@
         }
     }
 
-    function saveBanners() {
+    async function saveBanner(index) {
+        const banner = banners[index];
+        if (!banner) return false;
+
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(banners));
+            const response = await fetch(`/api/admin/banners/${index}`, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    category: banner.category || "",
+                    image: banner.image || DEFAULT_BANNERS[index].image
+                })
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    showBannerToast("Entre na área administrativa para salvar os banners.");
+                } else {
+                    showBannerToast(data.error || "Não foi possível salvar o banner.");
+                }
+                return false;
+            }
+
+            if (Array.isArray(data.banners)) {
+                banners = DEFAULT_BANNERS.map((item, itemIndex) => ({
+                    ...item,
+                    ...(data.banners[itemIndex] || {})
+                }));
+            } else if (data.banner) {
+                banners[index] = { ...banner, ...data.banner };
+            }
+
+            // Mantém uma cópia local apenas como contingência; o servidor é a fonte oficial.
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(banners));
+            } catch (storageError) {
+                console.warn("Não foi possível manter a cópia local dos banners:", storageError);
+            }
+
+            applyBannerLinks();
             return true;
         } catch (error) {
-            console.error("Não foi possível salvar os banners:", error);
-            showBannerToast("Não foi possível salvar. A imagem pode ser muito grande.");
+            console.error("Não foi possível salvar o banner no servidor:", error);
+            showBannerToast("Falha de conexão. O banner não foi salvo no servidor.");
             return false;
         }
     }
@@ -304,12 +343,19 @@
         });
 
         fieldset.querySelectorAll("[data-banner-save]").forEach(button => {
-            button.addEventListener("click", () => {
+            button.addEventListener("click", async () => {
                 const index = Number(button.dataset.bannerSave);
-                if (!saveBanners()) return;
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = "Salvando...";
 
-                applyBannerLinks();
-                showBannerToast(`Banner ${index + 1} salvo.`);
+                try {
+                    const saved = await saveBanner(index);
+                    if (saved) showBannerToast(`Banner ${index + 1} salvo no servidor.`);
+                } finally {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
             });
         });
     }

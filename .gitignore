@@ -6,3 +6,20 @@ node_modules/
 
 data/customers.json
 data/orders.json
+
+# Local browser/session artifacts and sensitive exports
+cookies.txt
+cookies-*.txt
+*.cookies
+
+# Keep local Git metadata out of deployment/export bundles
+.git/
+
+.env.*
+!.env.example
+
+# Dados locais da loja e cotações de frete
+data/freight-quotes.json
+data/*.tmp
+testar-supabase.js
+testar-supabase.js.txt

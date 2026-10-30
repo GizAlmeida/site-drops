@@ -62,6 +62,20 @@
 
     <div class="header-row">
 
+        <!-- MENU HAMBÚRGUER — navegação mobile -->
+        <button
+            type="button"
+            class="mobile-menu-toggle"
+            id="mobileMenuToggle"
+            aria-label="Abrir menu de categorias"
+            aria-controls="categoryNav"
+            aria-expanded="false"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
 
         <!-- =================================================
              LOGOMARCA
@@ -137,29 +151,7 @@
                 </svg>
             </button>
 
-
-            <!-- CONFIGURAÇÕES -->
-
-            <button
-                type="button"
-                class="icon-btn"
-                id="adminOpenBtn"
-                title="Área da loja"
-                aria-label="Área da loja"
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                >
-                    <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
-                    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 1.7-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56v.09h-2.4v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.7-1.7.06-.06A1.7 1.7 0 0 0 8.46 15a1.7 1.7 0 0 0-1.56-1.03h-.09v-2.4h.09A1.7 1.7 0 0 0 8.46 10a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.7-1.7.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 12.73 5.2v-.09h2.4v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.7 1.7-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 11h.09v2.4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
-                </svg>
-
-            </button>
-
-
-            <!-- CARRINHO -->
+<!-- CARRINHO -->
 
             <button
                 type="button"
@@ -406,8 +398,52 @@
 
 
 <!-- =========================================================
+     DESTAQUES — SELECIONADOS NO PAINEL ADMINISTRATIVO
+     ========================================================= -->
+<section class="launches-section featured-section" id="destaques" aria-label="Destaques">
+    <div class="launches-head">
+        <div>
+            <span class="section-kicker">SELEÇÃO ESPECIAL</span>
+            <h2>Destaques</h2>
+            <p>Conheça os perfumes selecionados pela Drops de Luxo.</p>
+        </div>
+    </div>
+    <div class="launches-grid" id="featuredGrid"></div>
+</section>
+
+
+<!-- =========================================================
      INSTAGRAM — BEHOLD
      ========================================================= -->
+
+
+<!-- =========================================================
+     FAMÍLIAS OLFATIVAS — CARREGADAS PELO CATÁLOGO
+     ========================================================= -->
+<section class="olfactory-section" id="familias-olfativas" aria-label="Explore por família olfativa">
+  <div class="olfactory-heading">
+    <span class="section-kicker">ENCONTRE SUA FRAGRÂNCIA</span>
+    <h2>Explore por família olfativa</h2>
+    <p>Descubra perfumes de acordo com as notas e sensações que você mais gosta.</p>
+  </div>
+  <div class="olfactory-carousel-wrap">
+    <button class="olfactory-arrow olfactory-prev" type="button" aria-label="Famílias anteriores">‹</button>
+    <div class="olfactory-carousel" id="olfactoryCarousel" aria-live="polite">
+      <p class="olfactory-loading">Carregando famílias olfativas…</p>
+    </div>
+    <button class="olfactory-arrow olfactory-next" type="button" aria-label="Próximas famílias">›</button>
+  </div>
+</section>
+<style>
+/* Famílias olfativas: cards e fotografias com dimensões uniformes */
+.olfactory-section{padding:54px max(24px,calc((100% - 1280px)/2));background:#f7f3ec;color:#211e1a}
+.olfactory-heading{margin:0 auto 24px;max-width:1280px}.olfactory-heading h2{font-family:"Cormorant Garamond",serif;font-size:clamp(30px,4vw,44px);font-weight:500;margin:6px 0}.olfactory-heading p{color:#777;margin:8px 0 0}
+.olfactory-carousel-wrap{display:flex;align-items:center;gap:12px;max-width:1280px;margin:auto}
+.olfactory-carousel{display:flex;align-items:stretch;gap:20px;overflow-x:auto;scroll-behavior:smooth;scroll-snap-type:x mandatory;flex:1;padding:8px 2px 16px;min-width:0}
+.olfactory-card{flex:0 0 262px;width:262px;height:434px;min-height:434px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:25px;text-align:left;border:1px solid #e5d9c7;border-radius:5px;background:#fff;cursor:pointer;scroll-snap-align:start;color:#211e1a;transition:transform .2s,border-color .2s;overflow:hidden}
+.olfactory-card:hover{transform:translateY(-3px);border-color:#b79a64}.olfactory-card strong{display:block;flex:0 0 auto;min-height:29px;margin:14px 0 7px;font-family:"Cormorant Garamond",serif;font-size:20px;line-height:1.25;font-weight:500}.olfactory-card small{display:-webkit-box;flex:0 0 174px;height:174px;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:8;font-size:15px;line-height:1.45;color:#777}.olfactory-art{font-size:36px;color:#b49a6a}.olfactory-family-image{display:block;flex:0 0 120px;width:100%;height:120px;object-fit:cover;object-position:center;border-radius:3px;margin:0}.olfactory-arrow{flex:0 0 38px;width:38px;height:38px;border:1px solid #cfc3b1;background:transparent;font-size:27px;cursor:pointer;color:#4b4338}.olfactory-loading{color:#777;padding:24px}
+@media(max-width:700px){.olfactory-section{padding:36px 16px}.olfactory-carousel-wrap{gap:6px}.olfactory-carousel{gap:12px}.olfactory-card{flex-basis: min(78vw,262px);width:min(78vw,262px);height:410px;min-height:410px;padding:18px}.olfactory-card strong{min-height:27px;margin:12px 0 7px;font-size:19px}.olfactory-card small{flex-basis:170px;height:170px;-webkit-line-clamp:8;font-size:13px;line-height:1.45}.olfactory-family-image{flex-basis:112px;height:112px}.olfactory-arrow{flex-basis:30px;width:30px;height:34px}}
+</style>
 
 <section
     class="instagram-section"
@@ -534,16 +570,7 @@
                 Fortaleza — CE.
             </p>
 
-            <p class="admin-link">
 
-                <a
-                    href="#"
-                    id="adminOpenLink"
-                >
-                    Área da loja · cadastro de produtos
-                </a>
-
-            </p>
 
         </div>
 
@@ -883,9 +910,10 @@
 
             <div class="product-modal-divider"></div>
 
+            <div class="product-modal-variant" id="productModalVariant" hidden></div>
             <div class="product-modal-price" id="productModalPrice"></div>
 
-            <div class="product-modal-stock" id="productModalStock"></div>
+            <div class="product-modal-stock" id="productModalStock" hidden></div>
 
             <div class="product-modal-actions">
 
