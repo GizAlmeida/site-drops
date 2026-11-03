@@ -32,6 +32,47 @@ if (fs.existsSync(envPath)) {
     }
 }
 
+/*
+ * ARMAZENAMENTO PERSISTENTE
+ * Em hospedagens como Render, configure DATA_DIR=/var/data e monte o disco
+ * nesse mesmo caminho. Na primeira inicialização, os arquivos existentes em
+ * ./data são copiados para o disco, sem sobrescrever nenhum arquivo já salvo.
+ * Em desenvolvimento local, o padrão continua sendo ./data.
+ */
+const DATA_DIR = process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(ROOT, "data");
+const SOURCE_DATA_DIR = path.join(ROOT, "data");
+
+function migrateInitialDataToPersistentStorage() {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+
+    if (path.resolve(DATA_DIR) === path.resolve(SOURCE_DATA_DIR) ||
+        !fs.existsSync(SOURCE_DATA_DIR)) {
+        return;
+    }
+
+    const entries = fs.readdirSync(SOURCE_DATA_DIR, { withFileTypes: true });
+    let copied = 0;
+
+    for (const entry of entries) {
+        if (!entry.isFile()) continue;
+
+        const sourceFile = path.join(SOURCE_DATA_DIR, entry.name);
+        const destinationFile = path.join(DATA_DIR, entry.name);
+
+        // Nunca substitui dados que já estejam no disco persistente.
+        if (!fs.existsSync(destinationFile)) {
+            fs.copyFileSync(sourceFile, destinationFile);
+            copied += 1;
+        }
+    }
+
+    console.log(`Armazenamento persistente: ${DATA_DIR} (${copied} arquivo(s) inicial(is) copiado(s)).`);
+}
+
+migrateInitialDataToPersistentStorage();
+
 const SUPERFRETE_TOKEN = process.env.SUPERFRETE_TOKEN || "";
 const SUPERFRETE_API_URL = process.env.SUPERFRETE_API_URL || "https://api.superfrete.com/api/v0/calculator";
 const SUPERFRETE_CART_API_URL = process.env.SUPERFRETE_CART_API_URL || "https://api.superfrete.com/api/v0/cart";
@@ -66,7 +107,7 @@ const INFINITEPAY_PAYMENT_CHECK_URL =
 const INFINITEPAY_WEBHOOK_URL = String(process.env.INFINITEPAY_WEBHOOK_URL || "").trim();
 // A conta aceita pelo backend deve ser a mesma usada no checkout do navegador.
 const INFINITEPAY_HANDLE = String(process.env.INFINITEPAY_HANDLE || "$ana-paula-1t3").trim();
-const ORDERS_DIR = path.join(ROOT, "data");
+const ORDERS_DIR = DATA_DIR;
 const ORDERS_FILE = path.join(ORDERS_DIR, "orders.json");
 const FREIGHT_QUOTES_FILE = path.join(ORDERS_DIR, "freight-quotes.json");
 const FREIGHT_QUOTE_TTL_MS = 15 * 60 * 1000;
@@ -94,7 +135,7 @@ const loginAttempts = new Map();
 
 const CUSTOMER_SESSION_COOKIE = "dl_customer_session";
 const CUSTOMER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const CUSTOMER_DATA_DIR = path.join(ROOT, "data");
+const CUSTOMER_DATA_DIR = DATA_DIR;
 const CUSTOMERS_FILE = path.join(CUSTOMER_DATA_DIR, "customers.json");
 const customerSessions = new Map();
 const customerLoginAttempts = new Map();
@@ -2168,7 +2209,6 @@ async function calculateFreight(req, res) {
    Alterações administrativas exigem sessão válida.
    ========================================================= */
 
-const DATA_DIR = path.join(ROOT, "data");
 const CATALOG_FILE = path.join(DATA_DIR, "catalog.json");
 
 const SEED_PRODUCTS = [
@@ -2358,7 +2398,7 @@ function normalizeProduct(input, existingId = null) {
    Os banners ficam no servidor para que o painel administrativo
    seja a fonte oficial das imagens e destinos.
    ========================================================= */
-const BANNERS_FILE = path.join(ROOT, "data", "banners.json");
+const BANNERS_FILE = path.join(DATA_DIR, "banners.json");
 const DEFAULT_BANNERS = [
     { image: "imgs/banner1.jpg", category: "" },
     { image: "imgs/banner2.jpg", category: "" },
