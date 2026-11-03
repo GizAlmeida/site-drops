@@ -1,0 +1,19 @@
+FASE 2 — SISTEMA DE PEDIDOS
+
+Esta etapa adiciona a área administrativa de pedidos.
+
+Arquivos para substituir no projeto atual:
+- admin/index.html
+- admin/admin.js
+- admin/admin.css
+
+O server.js NÃO precisa ser substituído nesta etapa: as APIs administrativas de pedidos já existem no projeto atual.
+
+Depois de substituir os 3 arquivos:
+1. Rode: node server.js
+2. Acesse: http://127.0.0.1:3000/admin/
+3. Entre no painel administrativo.
+4. A seção VENDAS > Pedidos deverá carregar os pedidos do servidor.
+5. Teste primeiro apenas a visualização.
+6. Depois teste abrir "Ver detalhes".
+7. Por último teste alterar o status de um pedido de teste e salvar.

@@ -6314,3 +6314,72 @@ footer {
     }
     .categories-more-menu .pill { min-height: 36px; }
 }
+
+
+/* Busca: apresenta somente os resultados, preservando cabeçalho e rodapé. */
+body.search-active .hero-slider,
+body.search-active #lancamentos,
+body.search-active #destaques,
+body.search-active #familias-olfativas,
+body.search-active #instagram {
+    display: none !important;
+}
+body.search-active #catalogo {
+    display: block !important;
+    margin-top: 24px;
+}
+
+/* Banner mobile: altura acompanha a proporção real de cada imagem. */
+@media (max-width: 700px) {
+    .hero-slider {
+        height: var(--banner-height, clamp(160px, 52vw, 300px)) !important;
+        min-height: 0 !important;
+        aspect-ratio: auto !important;
+        overflow: hidden;
+        background: #f7f3ec;
+        transition: height .25s ease;
+    }
+    .hero-slider-track {
+        height: 100%;
+        min-height: 0;
+        align-items: stretch;
+    }
+    .hero-slide {
+        height: 100%;
+        min-height: 0;
+    }
+    .hero-slide img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+    }
+}
+
+
+/* =========================================================
+   HERO RESPONSIVO — proporção original em todas as telas
+   ========================================================= */
+.hero-slider {
+    width: min(1400px, calc(100% - 40px));
+    height: var(--banner-height, clamp(180px, 42vw, 440px)) !important;
+    min-height: 0 !important;
+    aspect-ratio: auto !important;
+    overflow: hidden;
+    background: #f7f3ec;
+    transition: height .25s ease;
+}
+/* O banner permanece visível mesmo enquanto o JavaScript inicializa. */
+.hero-slider-track { width: 100%; height: 100%; align-items: stretch; }
+.hero-slide { flex: 0 0 100%; width: 100%; height: 100%; min-height: 0; }
+.hero-slide img {
+    display: block; width: 100%; height: 100%;
+    object-fit: contain !important; object-position: center;
+}
+@media (max-width: 1024px) {
+    .hero-slider { width: calc(100% - 24px); margin-left: auto; margin-right: auto; }
+}
+@media (max-width: 700px) {
+    .hero-slider { width: calc(100% - 20px); margin: 16px auto 36px; border-radius: 12px; }
+}

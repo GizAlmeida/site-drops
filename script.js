@@ -123,7 +123,7 @@ function setupPasswordToggles(root = document) {
 const WHATSAPP_NUMBER = "5585991244138";
 
 const INFINITEPAY_HANDLE =
-    "$ana-paula-1t3";
+    "$luciene-lucas-3s1";
 
 const INFINITEPAY_LINKS_URL =
     "https://api.checkout.infinitepay.io/links";
@@ -1032,6 +1032,8 @@ function renderGrid() {
     const catalogSection = document.getElementById("catalogo");
     const hasSearch = Boolean(searchTerm.trim());
     const hasChosenCategory = activeCategory !== "all";
+    document.body.classList.toggle("search-active", hasSearch);
+
     if (catalogSection) {
         catalogSection.hidden = !(hasChosenCategory || hasSearch || Boolean(window.activeOlfactoryFamily));
     }
@@ -2657,7 +2659,7 @@ async function goToInfinitePayCheckout(
         ) {
 
             throw new Error(
-                data?.message ||
+                data?.message || data?.error ||
                 "Não foi possível gerar o pagamento."
             );
 
@@ -4236,6 +4238,38 @@ function initializeHeroSlider() {
 
     let timer = null;
 
+    const bannerImages = slides.map(slide => slide.querySelector("img")).filter(Boolean);
+
+    function updateBannerHeight() {
+        const image = bannerImages[currentSlide];
+        if (!image || !image.naturalWidth || !image.naturalHeight) return;
+
+        const sliderWidth = slider.clientWidth;
+        if (!sliderWidth) return;
+
+        // Mantém a proporção original da imagem em celular, tablet e desktop.
+        const calculatedHeight = sliderWidth * image.naturalHeight / image.naturalWidth;
+        slider.style.setProperty("--banner-height", `${Math.round(calculatedHeight)}px`);
+    }
+
+    function waitForImage(image) {
+        if (image.complete) {
+            if (!image.naturalWidth) return Promise.resolve();
+            return image.decode ? image.decode().catch(() => {}) : Promise.resolve();
+        }
+
+        return new Promise(resolve => {
+            image.addEventListener("load", resolve, { once: true });
+            image.addEventListener("error", resolve, { once: true });
+        }).then(() => image.decode ? image.decode().catch(() => {}) : undefined);
+    }
+
+    // Pré-carrega os banners antes de iniciar a rotação, evitando a troca para imagens ainda não prontas.
+    bannerImages.forEach(image => {
+        image.loading = "eager";
+        image.decoding = "async";
+    });
+
 
     /* =====================================================
        MOSTRAR SLIDE
@@ -4266,6 +4300,7 @@ function initializeHeroSlider() {
         currentSlide =
             index;
 
+        updateBannerHeight();
 
         track.style.transform =
             `translateX(-${
@@ -4444,7 +4479,19 @@ function initializeHeroSlider() {
 
     showSlide(0);
 
-    startAutoPlay();
+    // Só começa a alternância depois que os arquivos dos banners foram carregados/decodificados.
+    Promise.allSettled(bannerImages.map(waitForImage)).then(() => {
+        updateBannerHeight();
+        // Só revela o carrossel depois que as imagens foram carregadas/decodificadas.
+        slider.classList.add("is-ready");
+        startAutoPlay();
+    });
+
+    let resizeFrame = null;
+    window.addEventListener("resize", () => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(updateBannerHeight);
+    }, { passive: true });
 
 }
 
