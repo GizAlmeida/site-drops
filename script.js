@@ -5002,11 +5002,17 @@ async function initializeStore() {
 
         initializeCustomerAccount();
 
-        await loadCatalog();
+        // O banner é independente do backend: inicializa imediatamente,
+        // sem esperar catálogo, carrinho ou sessão da cliente.
+        initializeHeroSlider();
 
-        await loadCart();
-
-        await loadCurrentCustomer();
+        // Essas três leituras não dependem umas das outras; em paralelo,
+        // evitam somar o tempo de resposta de cada requisição.
+        await Promise.all([
+            loadCatalog(),
+            loadCart(),
+            loadCurrentCustomer()
+        ]);
 
 
         renderNav();
@@ -5096,8 +5102,6 @@ async function initializeStore() {
         initializeProductModal();
 
         initializeDrawers();
-
-        initializeHeroSlider();
 
         setWhatsAppLinks();
 
