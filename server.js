@@ -1799,12 +1799,26 @@ async function checkInfinitePayPayment(req, res) {
 }
 
 async function infinitePayWebhook(req, res) {
+  console.info("[InfinitePay webhook] Requisição recebida", {
+    method: req.method,
+    contentType: req.headers["content-type"] || "",
+  });
   let payload;
   try {
     payload = await readJson(req, 50000);
   } catch (error) {
+    console.warn("[InfinitePay webhook] JSON inválido", { message: error.message });
     return sendJson(res, 400, { error: error.message });
   }
+  // Diagnóstico sem registrar valores, identificadores, dados de clientes ou credenciais.
+  console.info("[InfinitePay webhook] Campos recebidos", {
+    keys: Object.keys(payload || {}),
+    hasHandle: Boolean(payload?.handle),
+    hasOrderNsu: Boolean(payload?.order_nsu),
+    hasTransactionNsu: Boolean(payload?.transaction_nsu),
+    hasSlug: Boolean(payload?.slug || payload?.invoice_slug),
+    event: typeof payload?.event === "string" ? payload.event : undefined,
+  });
 
   // O webhook oficial documentado não inclui necessariamente o campo `handle`.
   // Nesse caso, usamos o handle configurado no servidor; se vier no payload,
@@ -1818,11 +1832,17 @@ async function infinitePayWebhook(req, res) {
   };
 
   if (!body.order_nsu || !body.transaction_nsu || !body.slug) {
+    console.warn("[InfinitePay webhook] Rejeitado: identificadores obrigatórios ausentes", {
+      hasOrderNsu: Boolean(body.order_nsu),
+      hasTransactionNsu: Boolean(body.transaction_nsu),
+      hasSlug: Boolean(body.slug),
+    });
     return sendJson(res, 400, {
       error: "Dados insuficientes para validar o webhook da InfinitePay.",
     });
   }
   if (receivedHandle && receivedHandle !== INFINITEPAY_HANDLE) {
+    console.warn("[InfinitePay webhook] Rejeitado: handle divergente");
     return sendJson(res, 400, {
       error:
         "A conta InfinitePay do webhook não corresponde à conta configurada na loja.",
@@ -1833,20 +1853,28 @@ async function infinitePayWebhook(req, res) {
     const localOrder = readOrdersFile().find(
       (order) => order.order_nsu === body.order_nsu,
     );
-    if (!localOrder)
+    if (!localOrder) {
+      console.warn("[InfinitePay webhook] Pedido local não encontrado");
       return sendJson(res, 404, {
         error: "Pedido não encontrado para este order_nsu.",
       });
+    }
 
     // Nunca confiar apenas no corpo do webhook: confirmar o pagamento consultando a InfinitePay.
     const { response, data } = await requestInfinitePayPaymentCheck(body);
     if (!response.ok) {
+      console.error("[InfinitePay webhook] payment_check retornou HTTP não-2xx", {
+        status: response.status,
+      });
       return sendJson(res, 502, {
         error: "Não foi possível validar o webhook com a InfinitePay.",
       });
     }
     const validation = validateInfinitePayConfirmation(data, body, localOrder);
     if (!validation.ok) {
+      console.warn("[InfinitePay webhook] Confirmação não validada", {
+        reason: validation.reason,
+      });
       return sendJson(res, 409, {
         ok: false,
         paid: false,
@@ -1861,10 +1889,13 @@ async function infinitePayWebhook(req, res) {
       paid: true,
       slug: body.slug,
     });
-    if (!order)
+    if (!order) {
+      console.error("[InfinitePay webhook] Pedido não foi atualizado após validação");
       return sendJson(res, 404, {
         error: "Pedido não encontrado para atualização.",
       });
+    }
+    console.info("[InfinitePay webhook] Pagamento validado e pedido atualizado");
     return sendJson(res, 200, { ok: true });
   } catch (error) {
     console.error("Erro ao processar webhook InfinitePay:", error);
