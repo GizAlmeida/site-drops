@@ -1577,8 +1577,15 @@ async function createInfinitePayCheckout(req, res) {
   delete gatewayPayload.store_order;
   // Com API Key (X-Api-Key), a documentação dispensa o handle no payload externo.
   delete gatewayPayload.handle;
-  if (INFINITEPAY_WEBHOOK_URL)
-    gatewayPayload.webhook_url = INFINITEPAY_WEBHOOK_URL;
+  if (INFINITEPAY_WEBHOOK_URL) {
+    // Formato documentado pela InfinitePay: webhook com URL e eventos inscritos.
+    // Por enquanto assinamos apenas `paid`, pois a loja ainda não implementa
+    // o fluxo de estorno/cancelamento recebido por webhook.
+    gatewayPayload.webhook = {
+      url: INFINITEPAY_WEBHOOK_URL,
+      events: ["paid"],
+    };
+  }
 
   try {
     const response = await fetch(INFINITEPAY_CHECKOUT_API_URL, {
