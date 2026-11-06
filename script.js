@@ -2507,16 +2507,8 @@ async function goToInfinitePayCheckout(
        O backend usa essas informações para registrar o pedido completo
        antes de encaminhá-lo para a InfinitePay.
     */
-    payload.customer = currentCustomer
-        ? {
-            id: currentCustomer.id || null,
-            name: currentCustomer.name || "",
-            email: currentCustomer.email || "",
-            phone: currentCustomer.phone || "",
-            document: currentCustomer.document || "",
-            address: currentCustomer.address || null
-        }
-        : null;
+    // A identidade da cliente é obtida no backend pela sessão autenticada.
+    // Não enviar customer pelo navegador para evitar associações não confiáveis.
 
     payload.store_order = {
         items: lines.map(line => ({

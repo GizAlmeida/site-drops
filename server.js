@@ -1040,6 +1040,8 @@ function upsertPendingOrder(payload) {
 
   const order = {
     order_nsu: orderNsu,
+    // ID imutável da conta autenticada; pedidos de convidados permanecem sem vínculo.
+    customer_id: payload.customer_id || null,
     status: "aguardando_pagamento",
     amount: total,
     items: Array.isArray(payload.items)
@@ -1552,6 +1554,34 @@ async function createInfinitePayCheckout(req, res) {
   if (!validation.ok) return sendJson(res, 400, { error: validation.error });
   payload = validation.payload;
 
+  // A identidade do comprador vem exclusivamente da sessão HttpOnly do servidor.
+  // Nunca associar uma conta com base em customer enviado pelo navegador.
+  const customerSession = getCustomerSession(req);
+  if (customerSession) {
+    const authenticatedCustomer = getCustomerById(customerSession.customerId);
+    if (!authenticatedCustomer) {
+      customerSessions.delete(customerSession.token);
+      clearCustomerSessionCookie(res);
+      return sendJson(res, 401, {
+        authenticated: false,
+        error: "Sua sessão de cliente expirou. Entre novamente para continuar.",
+      });
+    }
+    payload.customer_id = authenticatedCustomer.id;
+    payload.customer = sanitizeCustomer(authenticatedCustomer);
+    // Mantém no registro os dados de cadastro verificados no servidor.
+    if (payload.store_order && typeof payload.store_order === "object") {
+      payload.store_order.customer_id = authenticatedCustomer.id;
+    }
+  } else {
+    // Compra como convidado: não aceitar vínculo arbitrário enviado pelo browser.
+    payload.customer_id = null;
+    payload.customer = null;
+    if (payload.store_order && typeof payload.store_order === "object") {
+      delete payload.store_order.customer_id;
+    }
+  }
+
   // Impede reutilização de order_nsu: evita sobrescrita e checkout duplicado para
   // o mesmo identificador. O cliente deve gerar um novo identificador para novo pedido.
   try {
@@ -1942,7 +1972,8 @@ function getOrder(req, res, orderNsu) {
     const order = readOrdersFile().find(
       (item) =>
         item.order_nsu === String(orderNsu || "") &&
-        normalizeCustomerEmail(item?.customer?.email) === email,
+        ((item.customer_id && item.customer_id === customer.id) ||
+          (!item.customer_id && normalizeCustomerEmail(item?.customer?.email) === email)),
     );
     if (!order) return sendJson(res, 404, { error: "Pedido não encontrado." });
     const safeOrder = {
@@ -2795,7 +2826,9 @@ function getCustomerOrders(req, res) {
     const email = normalizeCustomerEmail(customer.email);
     const orders = readOrdersFile()
       .filter(
-        (order) => normalizeCustomerEmail(order?.customer?.email) === email,
+        (order) =>
+          (order.customer_id && order.customer_id === customer.id) ||
+          (!order.customer_id && normalizeCustomerEmail(order?.customer?.email) === email),
       )
       .sort((a, b) =>
         String(b.createdAt || "").localeCompare(String(a.createdAt || "")),
@@ -2852,11 +2885,20 @@ function getCustomerOrder(req, res, orderNsu) {
 
   try {
     const customer = getCustomerById(session.customerId);
-    const email = normalizeCustomerEmail(customer?.email);
+    if (!customer) {
+      customerSessions.delete(session.token);
+      clearCustomerSessionCookie(res);
+      return sendJson(res, 401, {
+        authenticated: false,
+        error: "Sessão do cliente inválida.",
+      });
+    }
+    const email = normalizeCustomerEmail(customer.email);
     const order = readOrdersFile().find(
       (item) =>
         item.order_nsu === String(orderNsu || "") &&
-        normalizeCustomerEmail(item?.customer?.email) === email,
+        ((item.customer_id && item.customer_id === customer.id) ||
+          (!item.customer_id && normalizeCustomerEmail(item?.customer?.email) === email)),
     );
 
     if (!order) return sendJson(res, 404, { error: "Pedido não encontrado." });
