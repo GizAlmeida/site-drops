@@ -2671,6 +2671,30 @@ async function goToInfinitePayCheckout(
             data?.checkout_url ||
             data?.link;
 
+        // Preserve os identificadores que a InfinitePay devolver ao criar o checkout.
+        // O transaction_nsu normalmente só estará disponível no retorno do pagamento.
+        try {
+            const pendingKey = "pending_order:" + orderNsu;
+            const pendingRaw = await storageGet(pendingKey);
+            const pendingData = pendingRaw ? JSON.parse(pendingRaw) : {};
+            let checkoutParams = {};
+            try {
+                const parsedCheckoutUrl = new URL(checkoutUrl, window.location.origin);
+                checkoutParams = {
+                    slug: parsedCheckoutUrl.searchParams.get("slug") || parsedCheckoutUrl.searchParams.get("invoice_slug") || "",
+                    transactionNsu: parsedCheckoutUrl.searchParams.get("transaction_nsu") || parsedCheckoutUrl.searchParams.get("transactionNsu") || ""
+                };
+            } catch (_) {}
+            await storageSet(pendingKey, JSON.stringify({
+                ...pendingData,
+                checkoutUrl,
+                slug: data?.slug || data?.invoice_slug || checkoutParams.slug || pendingData.slug || "",
+                transactionNsu: data?.transaction_nsu || checkoutParams.transactionNsu || pendingData.transactionNsu || "",
+                invoiceSlug: data?.invoice_slug || data?.slug || checkoutParams.slug || pendingData.invoiceSlug || ""
+            }), false);
+        } catch (storageError) {
+            console.warn("Não foi possível guardar os dados de retorno do checkout.", storageError);
+        }
 
         if (!checkoutUrl) {
 
@@ -2721,9 +2745,9 @@ async function goToInfinitePayCheckout(
 async function handleReturnFromInfinitePay() {
     const params = new URLSearchParams(window.location.search);
     const orderNsu = params.get("order_nsu") || params.get("orderNsu");
-    const transactionNsu = params.get("transaction_nsu") || params.get("transactionNsu");
-    const slug = params.get("slug") || params.get("invoice_slug");
-    const receiptUrl = params.get("receipt_url") || params.get("receiptUrl") || "";
+    let transactionNsu = params.get("transaction_nsu") || params.get("transactionNsu");
+    let slug = params.get("slug") || params.get("invoice_slug");
+    let receiptUrl = params.get("receipt_url") || params.get("receiptUrl") || "";
     const captureMethod = params.get("capture_method") || "";
     const status = (params.get("status") || "").toLowerCase();
 
@@ -2736,6 +2760,32 @@ async function handleReturnFromInfinitePay() {
         pending = pendingRaw ? JSON.parse(pendingRaw) : null;
     } catch (error) {
         console.warn("Não foi possível recuperar o pedido pendente do navegador.", error);
+    }
+
+    // Recupera primeiro os dados locais e, se necessário, consulta os metadados
+    // salvos no pedido pelo backend. A confirmação continua dependendo do payment_check.
+    transactionNsu = transactionNsu || pending?.transactionNsu || "";
+    slug = slug || pending?.slug || pending?.invoiceSlug || "";
+    receiptUrl = receiptUrl || pending?.receiptUrl || "";
+
+    if (!transactionNsu || !slug) {
+        try {
+            const lookup = await fetch("/api/infinitepay/return-data", {
+                method: "POST",
+                credentials: "same-origin",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ order_nsu: orderNsu })
+            });
+            const saved = await lookup.json().catch(() => ({}));
+            if (lookup.ok) {
+                transactionNsu = transactionNsu || saved.transaction_nsu || "";
+                slug = slug || saved.slug || "";
+                receiptUrl = receiptUrl || saved.receipt_url || "";
+            }
+        } catch (lookupError) {
+            console.warn("Não foi possível recuperar os identificadores do pedido no servidor:", lookupError);
+        }
     }
 
     const cancelled = ["cancelled", "canceled", "failed", "declined", "error"].includes(status);
