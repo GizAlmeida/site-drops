@@ -1613,32 +1613,6 @@ async function createInfinitePayCheckout(req, res) {
         },
       );
     }
-    // Persistir os identificadores disponíveis na criação do checkout.
-    // Isso permite recuperar o slug no retorno mesmo quando ele não vier na URL.
-    try {
-      const orders = readOrdersFile();
-      const orderIndex = orders.findIndex(
-        (order) => order.order_nsu === String(payload.order_nsu),
-      );
-      if (orderIndex >= 0) {
-        const checkoutUrl = String(data?.url || data?.checkout_url || data?.link || "");
-        let urlSlug = "";
-        try {
-          const parsed = new URL(checkoutUrl);
-          urlSlug = parsed.searchParams.get("slug") || parsed.searchParams.get("invoice_slug") || "";
-        } catch {}
-        orders[orderIndex] = {
-          ...orders[orderIndex],
-          invoice_slug: String(data?.slug || data?.invoice_slug || urlSlug || orders[orderIndex].invoice_slug || ""),
-          checkout_url: checkoutUrl || orders[orderIndex].checkout_url || "",
-          updatedAt: new Date().toISOString(),
-        };
-        writeOrdersFile(orders);
-      }
-    } catch (saveError) {
-      // A falha ao salvar metadados não deve invalidar um checkout já criado.
-      console.error("Não foi possível salvar os metadados do checkout InfinitePay:", saveError);
-    }
     return sendJson(res, 200, data);
   } catch (error) {
     console.error("Erro ao conectar com a InfinitePay:", error);
@@ -1737,32 +1711,6 @@ function validateInfinitePayConfirmation(data, body, order) {
   return { ok: true };
 }
 
-async function getInfinitePayReturnData(req, res) {
-  let payload;
-  try {
-    payload = await readJson(req, 10000);
-  } catch (error) {
-    return sendJson(res, 400, { error: error.message });
-  }
-  const orderNsu = String(payload?.order_nsu || "").trim();
-  if (!orderNsu) return sendJson(res, 400, { error: "Identificador do pedido ausente." });
-  try {
-    const order = readOrdersFile().find((item) => item.order_nsu === orderNsu);
-    if (!order) return sendJson(res, 404, { error: "Pedido não encontrado." });
-    // Não expor dados pessoais nem informações administrativas neste endpoint.
-    return sendJson(res, 200, {
-      order_nsu: order.order_nsu,
-      transaction_nsu: order.transaction_nsu || "",
-      slug: order.invoice_slug || "",
-      receipt_url: order.receipt_url || "",
-      status: order.status,
-    });
-  } catch (error) {
-    console.error("Erro ao recuperar dados de retorno InfinitePay:", error);
-    return sendJson(res, 500, { error: "Não foi possível recuperar os dados do pagamento." });
-  }
-}
-
 async function checkInfinitePayPayment(req, res) {
   let payload;
   try {
@@ -1851,19 +1799,23 @@ async function infinitePayWebhook(req, res) {
     return sendJson(res, 400, { error: error.message });
   }
 
+  // O webhook oficial documentado não inclui necessariamente o campo `handle`.
+  // Nesse caso, usamos o handle configurado no servidor; se vier no payload,
+  // ele precisa corresponder à conta configurada.
+  const receivedHandle = String(payload?.handle || "").trim();
   const body = {
-    handle: String(payload?.handle || ""),
-    order_nsu: String(payload?.order_nsu || ""),
-    transaction_nsu: String(payload?.transaction_nsu || ""),
-    slug: String(payload?.slug || payload?.invoice_slug || ""),
+    handle: receivedHandle || INFINITEPAY_HANDLE,
+    order_nsu: String(payload?.order_nsu || "").trim(),
+    transaction_nsu: String(payload?.transaction_nsu || "").trim(),
+    slug: String(payload?.slug || payload?.invoice_slug || "").trim(),
   };
 
-  if (!body.order_nsu || !body.handle || !body.transaction_nsu || !body.slug) {
+  if (!body.order_nsu || !body.transaction_nsu || !body.slug) {
     return sendJson(res, 400, {
       error: "Dados insuficientes para validar o webhook da InfinitePay.",
     });
   }
-  if (body.handle !== INFINITEPAY_HANDLE) {
+  if (receivedHandle && receivedHandle !== INFINITEPAY_HANDLE) {
     return sendJson(res, 400, {
       error:
         "A conta InfinitePay do webhook não corresponde à conta configurada na loja.",
@@ -4165,10 +4117,6 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "POST" && pathname === "/api/infinitepay/checkout/links") {
     return createInfinitePayCheckout(req, res);
-  }
-
-  if (req.method === "POST" && pathname === "/api/infinitepay/return-data") {
-    return getInfinitePayReturnData(req, res);
   }
 
   if (req.method === "POST" && pathname === "/api/infinitepay/payment-check") {
