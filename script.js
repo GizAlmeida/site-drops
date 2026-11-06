@@ -3629,12 +3629,30 @@ let activeProductDetailsId = null;
 function getProductImages(product) {
     if (!product) return [];
     const candidates = [
-        ...(Array.isArray(product.images) ? product.images : []),
-        product.image
+        product.image,
+        ...(Array.isArray(product.images) ? product.images : [])
     ];
     return [...new Set(candidates.filter(value =>
         typeof value === "string" && value.trim()
     ).map(value => value.trim()))];
+}
+
+async function loadProductGallery(product) {
+    if (!product || !product.id) return;
+    try {
+        const response = await fetch(
+            `/api/products/${encodeURIComponent(product.id)}/images`,
+            { method: "GET", cache: "no-store" }
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!Array.isArray(data.images) || !data.images.length) return;
+        if (String(activeProductDetailsId) !== String(product.id)) return;
+        product.images = data.images;
+        renderProductModalGallery(product);
+    } catch (error) {
+        console.warn("As fotos adicionais deste produto não puderam ser carregadas.", error);
+    }
 }
 
 function renderProductModalGallery(product) {
@@ -3710,6 +3728,8 @@ function openProductDetails(productId) {
 
     activeProductDetailsId = product.id;
     renderProductModalGallery(product);
+    // A galeria completa só é solicitada quando o cliente abre os detalhes.
+    loadProductGallery(product);
 
     if (category) category.textContent = catLabel(product.category);
     if (title) title.textContent = product.name;
@@ -5002,9 +5022,18 @@ async function initializeStore() {
 
         initializeCustomerAccount();
 
-        // O banner é independente do backend: inicializa imediatamente,
-        // sem esperar catálogo, carrinho ou sessão da cliente.
-        initializeHeroSlider();
+        // O banner é inicializado assim que sua configuração oficial estiver pronta,
+        // sem bloquear o carregamento do catálogo, carrinho ou sessão da cliente.
+        if (window.dropsBannersReady && typeof window.dropsBannersReady.then === "function") {
+            window.dropsBannersReady
+                .then(() => initializeHeroSlider())
+                .catch(error => {
+                    console.warn("Não foi possível aguardar a configuração dos banners.", error);
+                    initializeHeroSlider();
+                });
+        } else {
+            initializeHeroSlider();
+        }
 
         // Essas três leituras não dependem umas das outras; em paralelo,
         // evitam somar o tempo de resposta de cada requisição.

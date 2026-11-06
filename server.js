@@ -3788,14 +3788,46 @@ function adminOlfactoryFamilyDelete(req, res, id) {
 
 function productsPublic(req, res) {
   try {
+    // A vitrine pública recebe apenas a foto principal. As fotos adicionais
+    // são carregadas sob demanda quando o cliente abre os detalhes do produto.
+    const products = readCatalogFile().map((product) => {
+      const images = Array.isArray(product.images) ? product.images : [];
+      const mainImage = product.image || images[0] || "";
+      const { images: _privateGalleryPayload, ...publicProduct } = product;
+      return { ...publicProduct, image: mainImage };
+    });
+
     return sendJson(res, 200, {
       source: "server",
-      products: readCatalogFile(),
+      products,
     });
   } catch (error) {
     return sendJson(res, 500, {
       error: error.message,
     });
+  }
+}
+
+function productImagesPublic(req, res, productId) {
+  try {
+    const id = decodeURIComponent(String(productId || ""));
+    const product = readCatalogFile().find(
+      (item) => String(item?.id || "") === id,
+    );
+    if (!product) {
+      return sendJson(res, 404, { error: "Produto não encontrado." });
+    }
+
+    const images = Array.isArray(product.images) ? product.images : [];
+    const gallery = [...new Set(
+      [product.image, ...images].filter(
+        (value) => typeof value === "string" && value.trim(),
+      ),
+    )];
+
+    return sendJson(res, 200, { images: gallery });
+  } catch (error) {
+    return sendJson(res, 500, { error: "Não foi possível carregar as fotos do produto." });
   }
 }
 
@@ -4410,6 +4442,11 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && pathname === "/api/products") {
     return productsPublic(req, res);
+  }
+
+  const publicProductImagesMatch = pathname.match(/^\/api\/products\/([^/]+)\/images$/);
+  if (req.method === "GET" && publicProductImagesMatch) {
+    return productImagesPublic(req, res, publicProductImagesMatch[1]);
   }
 
   if (req.method === "GET" && pathname === "/api/admin/customers") {

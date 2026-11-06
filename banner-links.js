@@ -96,7 +96,7 @@
                 console.warn("Não foi possível manter a cópia local dos banners:", storageError);
             }
 
-            applyBannerLinks();
+            await applyBannerLinks();
             return true;
         } catch (error) {
             console.error("Não foi possível salvar o banner no servidor:", error);
@@ -169,17 +169,22 @@
         return Array.from(slider.querySelectorAll(".hero-slide"));
     }
 
-    function applyBannerLinks() {
+    async function applyBannerLinks() {
         const slides = getSlideElements();
         if (!slides.length) return;
 
+        let firstImage = null;
         slides.forEach((slide, index) => {
             const config = banners[index] || DEFAULT_BANNERS[index];
             if (!config) return;
 
             const image = slide.querySelector("img");
             if (image && config.image) {
-                image.src = config.image;
+                if (index === 0) firstImage = image;
+                const nextSource = config.image;
+                if (image.getAttribute("src") !== nextSource) image.src = nextSource;
+                image.loading = index === 0 ? "eager" : "lazy";
+                if (index === 0) image.fetchPriority = "high";
             }
 
             slide.classList.toggle("hero-slide-clickable", Boolean(config.category));
@@ -213,6 +218,25 @@
                 }
             };
         });
+
+        // Só o primeiro banner precisa estar pronto para liberar o carrossel.
+        // Os demais são carregados sob demanda e não bloqueiam a página.
+        if (firstImage) {
+            await Promise.race([
+                new Promise(resolve => {
+                    const finish = () => {
+                        (firstImage.decode ? firstImage.decode().catch(() => {}) : Promise.resolve()).then(resolve);
+                    };
+                    if (firstImage.complete) finish();
+                    else {
+                        firstImage.addEventListener("load", finish, { once: true });
+                        firstImage.addEventListener("error", resolve, { once: true });
+                    }
+                }),
+                new Promise(resolve => setTimeout(resolve, 8000))
+            ]);
+        }
+        document.querySelector(".hero-slider")?.classList.add("banners-ready");
     }
 
     function buildCategoryOptions(selected) {
@@ -376,7 +400,7 @@
                     ...item,
                     ...(data.banners[index] || {})
                 }));
-                applyBannerLinks();
+                await applyBannerLinks();
                 return true;
             }
         } catch (error) {
@@ -384,13 +408,11 @@
         }
 
         banners = readBanners();
-        applyBannerLinks();
+        await applyBannerLinks();
         return false;
     }
 
     function initialize() {
-        loadServerBanners();
-
         const adminBody = document.getElementById("adminBody");
         if (!adminBody) return;
 
@@ -421,6 +443,9 @@
             block: "start"
         });
     };
+
+    // Inicia antes do DOMContentLoaded para que script.js encontre esta promessa.
+    window.dropsBannersReady = loadServerBanners();
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", initialize);

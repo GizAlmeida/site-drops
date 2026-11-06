@@ -560,6 +560,10 @@ img {
    HERO SLIDER
    ========================================================= */
 
+.hero-slider:not(.banners-ready) {
+    visibility: hidden;
+}
+
 .hero-slider {
 
     position: relative;
