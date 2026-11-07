@@ -6387,3 +6387,263 @@ body.search-active #catalogo {
 @media (max-width: 700px) {
     .hero-slider { width: calc(100% - 20px); margin: 16px auto 36px; border-radius: 12px; }
 }
+
+
+/* =========================================================
+   AJUSTE MOBILE — MODAL DE PRODUTO E CARDS DO CATÁLOGO
+   Mantém o layout desktop e o fluxo atual dos decants.
+   ========================================================= */
+@media (max-width: 700px) {
+    .product-modal {
+        width: min(560px, calc(100vw - 20px));
+        max-height: min(88dvh, 760px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .product-modal-content {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        min-height: 0;
+        max-height: none;
+    }
+
+    .product-modal-media,
+    .product-modal-media:has(.product-gallery) {
+        height: clamp(165px, 28dvh, 215px);
+        min-height: 0;
+        padding: 10px 14px;
+    }
+
+    .product-gallery {
+        gap: 7px;
+    }
+
+    .product-gallery-main-image {
+        max-height: 155px;
+        padding: 4px;
+    }
+
+    .product-gallery-thumbnails {
+        gap: 7px;
+        padding: 1px 1px 3px;
+    }
+
+    .product-gallery-thumb {
+        flex-basis: 42px;
+        width: 42px;
+        height: 42px;
+        padding: 2px;
+    }
+
+    .product-modal-info {
+        min-width: 0;
+        overflow: visible;
+        padding: 15px 18px 18px;
+        justify-content: flex-start;
+    }
+
+    .product-modal-category {
+        margin-bottom: 5px;
+        font-size: 7px;
+    }
+
+    .product-modal-info h2 {
+        margin: 0 34px 7px 0;
+        font-size: clamp(25px, 6.5vw, 29px);
+        line-height: 1.02;
+    }
+
+    .product-modal-meta {
+        gap: 5px;
+        margin: 6px 0 8px;
+    }
+
+    .product-modal-meta span {
+        padding: 4px 7px;
+        font-size: 8px;
+    }
+
+    .product-modal-description {
+        display: -webkit-box;
+        max-width: none;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        font-size: 10px;
+        line-height: 1.5;
+    }
+
+    .product-modal-divider {
+        margin: 10px 0 9px;
+    }
+
+    .product-modal .decant-variant-wrap {
+        margin: 8px 0 7px;
+    }
+
+    .product-modal .decant-variant-title {
+        margin-bottom: 6px;
+        font-size: 10px;
+    }
+
+    .product-modal .decant-variant-options {
+        gap: 8px;
+    }
+
+    .product-modal .decant-variant-button {
+        min-width: 0;
+        min-height: 40px;
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+
+    .product-modal-price strong {
+        font-size: 27px;
+    }
+
+    .product-modal-actions {
+        margin-top: 12px;
+    }
+
+    .product-modal-add {
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 9px;
+    }
+
+    .product-modal-payment {
+        margin-top: 7px;
+        font-size: 7px;
+    }
+
+    .product-modal-close {
+        top: 8px;
+        right: 8px;
+        width: 32px;
+        height: 32px;
+        font-size: 21px;
+    }
+
+    /* Dois cards por linha, com ações que cabem dentro de cada card. */
+    .product-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .product-grid > .card {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .product-grid .card-media {
+        height: clamp(135px, 39vw, 175px);
+    }
+
+    .product-grid .card-body {
+        min-width: 0;
+        padding: 10px 9px 11px;
+    }
+
+    .product-grid .card-body h3 {
+        height: 2.25em;
+        min-height: 2.25em;
+        margin-bottom: 5px;
+        font-size: clamp(15px, 4.2vw, 17px);
+        line-height: 1.08;
+        -webkit-line-clamp: 2;
+    }
+
+    .product-grid .card-body .desc {
+        height: 2.9em;
+        min-height: 2.9em;
+        max-height: 2.9em;
+        margin-bottom: 9px;
+        font-size: 8px;
+        line-height: 1.45;
+    }
+
+    .product-grid .card-foot {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 7px;
+        width: 100%;
+        min-width: 0;
+        flex-wrap: nowrap;
+    }
+
+    .product-grid .card-foot > .price {
+        display: block;
+        min-width: 0;
+        font-size: 12px;
+        line-height: 1.2;
+    }
+
+    .product-grid .card-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: stretch;
+        gap: 5px;
+        width: 100%;
+        min-width: 0;
+        flex: 0 0 auto;
+    }
+
+    .product-grid .card-actions .details-btn,
+    .product-grid .card-actions .add-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        height: 34px;
+        min-height: 34px;
+        padding: 0 3px;
+        overflow: hidden;
+        font-size: clamp(6px, 1.65vw, 7px);
+        line-height: 1;
+        letter-spacing: 0;
+        text-align: center;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 380px) {
+    .product-modal {
+        width: calc(100vw - 14px);
+        max-height: 90dvh;
+    }
+
+    .product-modal-media,
+    .product-modal-media:has(.product-gallery) {
+        height: clamp(150px, 25dvh, 185px);
+        padding: 8px 11px;
+    }
+
+    .product-gallery-main-image {
+        max-height: 125px;
+    }
+
+    .product-modal-info {
+        padding: 13px 14px 15px;
+    }
+
+    .product-grid {
+        gap: 8px;
+    }
+
+    .product-grid .card-body {
+        padding: 9px 7px 10px;
+    }
+
+    .product-grid .card-actions {
+        gap: 4px;
+    }
+}
