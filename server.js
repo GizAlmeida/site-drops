@@ -1096,17 +1096,31 @@ function updateOrderPaid(data) {
       const quantity = Number(line?.quantity || 0);
       const product = catalog.find((item) => String(item.id) === productId);
       if (!product || !Number.isInteger(quantity) || quantity < 1) continue;
-      const available = Math.max(0, Number(product.stock || 0));
-      if (available < quantity) {
-        shortages.push({
-          productId,
-          productName: product.name || "Produto",
-          requested: quantity,
-          available,
-        });
-        product.stock = 0;
+      if (product.category === "decants") {
+        const variantMl = Number(line?.variantMl || 0);
+        if (![5, 10].includes(variantMl)) {
+          shortages.push({ productId, productName: product.name || "Produto", variantMl, requested: quantity, available: 0, reason: "variante inválida" });
+          continue;
+        }
+        product.decantStocks = product.decantStocks && typeof product.decantStocks === "object"
+          ? product.decantStocks
+          : { 5: Number(product.stock || 0), 10: 0 };
+        const available = Math.max(0, Number(product.decantStocks[String(variantMl)] || 0));
+        if (available < quantity) {
+          shortages.push({ productId, productName: product.name || "Produto", variantMl, requested: quantity, available });
+          product.decantStocks[String(variantMl)] = 0;
+        } else {
+          product.decantStocks[String(variantMl)] = available - quantity;
+        }
+        product.stock = Number(product.decantStocks["5"] || 0) + Number(product.decantStocks["10"] || 0);
       } else {
-        product.stock = available - quantity;
+        const available = Math.max(0, Number(product.stock || 0));
+        if (available < quantity) {
+          shortages.push({ productId, productName: product.name || "Produto", requested: quantity, available });
+          product.stock = 0;
+        } else {
+          product.stock = available - quantity;
+        }
       }
     }
     if (orderItems.length) writeCatalogFile(catalog);
@@ -1294,10 +1308,16 @@ function validateCheckoutAgainstCatalog(payload) {
         error: "Foi informado um tamanho inválido para um produto.",
       };
     }
-    if (Number(product.stock || 0) < quantity) {
+    const availableStock = product.category === "decants"
+      ? Number(product.decantStocks?.[String(variantMl)] ?? (variantMl === 5 ? product.stock : 0))
+      : Number(product.stock || 0);
+    const alreadyRequested = normalizedItems
+      .filter(item => item.productId === String(product.id) && Number(item.variantMl || 0) === Number(variantMl || 0))
+      .reduce((sum, item) => sum + item.quantity, 0);
+    if (availableStock < quantity + alreadyRequested) {
       return {
         ok: false,
-        error: `Estoque insuficiente para ${product.name}. Este item não pode ser comprado na quantidade solicitada.`,
+        error: `Estoque insuficiente para ${product.name}${variantMl ? ` (${variantMl} ml)` : ""}. Disponível: ${availableStock}.`,
       };
     }
     const unitPrice =
@@ -3295,6 +3315,10 @@ function normalizeProduct(input, existingId = null) {
   const price = isDecants ? decantPrice5 : Number(input?.price);
   const originalPrice = Number(input?.originalPrice || 0);
   const stock = Number(input?.stock || 0);
+  const rawDecantStocks = input?.decantStocks && typeof input.decantStocks === "object" ? input.decantStocks : null;
+  // Compatibilidade: decants antigos tinham um único estoque; preserva-o em 5 ml e inicia 10 ml em zero.
+  const decantStock5 = Number(rawDecantStocks ? rawDecantStocks["5"] : stock);
+  const decantStock10 = Number(rawDecantStocks ? rawDecantStocks["10"] : 0);
   const desc = String(input?.desc || "").trim();
   const rawFamilies = Array.isArray(input?.olfactoryFamilies)
     ? input.olfactoryFamilies
@@ -3356,6 +3380,9 @@ function normalizeProduct(input, existingId = null) {
   if (!Number.isFinite(stock) || stock < 0 || !Number.isInteger(stock)) {
     throw new Error("Estoque inválido.");
   }
+  if (isDecants && (![decantStock5, decantStock10].every(value => Number.isInteger(value) && value >= 0))) {
+    throw new Error("Informe estoques inteiros e não negativos para 5 ml e 10 ml.");
+  }
 
   if (
     !Number.isFinite(originalPrice) ||
@@ -3392,10 +3419,11 @@ function normalizeProduct(input, existingId = null) {
             10: Number(decantPrice10.toFixed(2)),
           },
           volume: 5,
+          decantStocks: { 5: decantStock5, 10: decantStock10 },
         }
       : {}),
     originalPrice: originalPrice ? Number(originalPrice.toFixed(2)) : 0,
-    stock,
+    stock: isDecants ? decantStock5 + decantStock10 : stock,
     desc,
     olfactoryFamilies,
     isLaunch,

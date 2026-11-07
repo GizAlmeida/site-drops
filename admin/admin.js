@@ -62,7 +62,7 @@ function renderProductsPage(){
    <td>${esc(p.name)}</td><td>${esc(p.brand||"—")}</td><td>${esc(cat(p.category))}</td>
    <td>${p.category==="decants"?"5 ml / 10 ml":(p.volume?Number(p.volume)+" ml":"—")}</td>
    <td>${p.category==="decants"?`5 ml: ${money(p.decantPrices?.["5"])}<br>10 ml: ${money(p.decantPrices?.["10"])}`:(p.originalPrice&&Number(p.originalPrice)>Number(p.price)?`<del>${money(p.originalPrice)}</del><br>${money(p.price)}`:money(p.price))}</td>
-   <td>${Number(p.stock||0)}</td><td class="product-actions"><button class="edit-link" type="button" data-edit="${esc(p.id)}">editar</button><button class="remove-link" type="button" data-delete="${esc(p.id)}">remover</button></td>
+   <td>${p.category==="decants"?`5 ml: ${Number(p.decantStocks?.["5"]??p.stock??0)}<br>10 ml: ${Number(p.decantStocks?.["10"]??0)}`:Number(p.stock||0)}</td><td class="product-actions"><button class="edit-link" type="button" data-edit="${esc(p.id)}">editar</button><button class="remove-link" type="button" data-delete="${esc(p.id)}">remover</button></td>
   </tr>`).join("");
  productsBody.querySelectorAll("[data-edit]").forEach(btn=>btn.addEventListener("click",()=>openProductEdit(btn.dataset.edit)));
  productsBody.querySelectorAll("[data-delete]").forEach(btn=>btn.addEventListener("click",async()=>{
@@ -103,7 +103,8 @@ function openProductEdit(id){
   <div id="editStandardPriceField"><label for="editPrice">Preço de venda</label><input id="editPrice" type="number" min="0" step="0.01" value="${Number(product.price||0)}" required></div>
   <div id="editDecantPrices" class="decant-price-fields" hidden><div><label for="editDecantPrice5">Preço do frasco de 5 ml</label><input id="editDecantPrice5" type="number" min="0.01" step="0.01" value="${Number(product.decantPrices?.["5"]||0)||""}"></div><div><label for="editDecantPrice10">Preço do frasco de 10 ml</label><input id="editDecantPrice10" type="number" min="0.01" step="0.01" value="${Number(product.decantPrices?.["10"]||0)||""}"></div><small>Os preços serão selecionados pelo cliente na loja.</small></div>
   <div><label for="editOriginalPrice">Preço original</label><input id="editOriginalPrice" type="number" min="0" step="0.01" value="${Number(product.originalPrice||0)}"></div>
-  <div><label for="editStock">Estoque</label><input id="editStock" type="number" min="0" step="1" value="${Number(product.stock||0)}"></div>
+  <div id="editStandardStockField"><label for="editStock">Estoque</label><input id="editStock" type="number" min="0" step="1" value="${Number(product.stock||0)}"></div>
+  <div id="editDecantStocks" class="decant-price-fields" hidden><div><label for="editDecantStock5">Estoque 5 ml</label><input id="editDecantStock5" type="number" min="0" step="1" value="${Number(product.decantStocks?.["5"]??product.stock??0)}"></div><div><label for="editDecantStock10">Estoque 10 ml</label><input id="editDecantStock10" type="number" min="0" step="1" value="${Number(product.decantStocks?.["10"]??0)}"></div></div>
   <div class="edit-product-wide"><label for="editDesc">Descrição</label><textarea id="editDesc" rows="4">${esc(product.desc||"")}</textarea></div>
   <div class="edit-checks edit-product-wide"><label><input id="editIsLaunch" type="checkbox" ${product.isLaunch?"checked":""}> Lançamento</label><label><input id="editIsFeatured" type="checkbox" ${product.isFeatured?"checked":""}> Destaque</label></div>
   <div class="edit-product-wide">
@@ -124,7 +125,7 @@ function openProductEdit(id){
 
  document.getElementById("editCat").value=product.category||"";
  document.getElementById("editGender").value=product.gender||"unissex";
- const toggleEditDecantFields=()=>{const decant=document.getElementById("editCat").value==="decants";document.getElementById("editDecantPrices").hidden=!decant;document.getElementById("editStandardPriceField").hidden=decant;document.getElementById("editOriginalPrice").closest("div").hidden=decant;document.getElementById("editPrice").required=!decant;document.getElementById("editDecantPrice5").required=decant;document.getElementById("editDecantPrice10").required=decant;};
+ const toggleEditDecantFields=()=>{const decant=document.getElementById("editCat").value==="decants";document.getElementById("editDecantPrices").hidden=!decant;document.getElementById("editDecantStocks").hidden=!decant;document.getElementById("editStandardStockField").hidden=decant;document.getElementById("editStandardPriceField").hidden=decant;document.getElementById("editOriginalPrice").closest("div").hidden=decant;document.getElementById("editPrice").required=!decant;document.getElementById("editDecantPrice5").required=decant;document.getElementById("editDecantPrice10").required=decant;};
  document.getElementById("editCat").addEventListener("change",toggleEditDecantFields);
  toggleEditDecantFields();
  modal.dataset.productId=product.id;
@@ -191,7 +192,8 @@ async function saveProductEdit(){
   category:document.getElementById("editCat")?.value,gender:document.getElementById("editGender")?.value,
   volume:isDecant?5:Number(document.getElementById("editVolume")?.value||0),price,originalPrice,
   ...(isDecant?{decantPrices:{"5":decantPrice5,"10":decantPrice10}}:{decantPrices:null}),
-  stock:Number(document.getElementById("editStock")?.value||0),desc:document.getElementById("editDesc")?.value.trim(),
+  stock:isDecant?(Number(document.getElementById("editDecantStock5")?.value||0)+Number(document.getElementById("editDecantStock10")?.value||0)):Number(document.getElementById("editStock")?.value||0),
+  ...(isDecant?{decantStocks:{"5":Number(document.getElementById("editDecantStock5")?.value||0),"10":Number(document.getElementById("editDecantStock10")?.value||0)}}:{}),desc:document.getElementById("editDesc")?.value.trim(),
   isLaunch:document.getElementById("editIsLaunch")?.checked,isFeatured:document.getElementById("editIsFeatured")?.checked,
   images:editSelectedImages.filter(Boolean),image:editSelectedImages.find(Boolean)||""
  };
@@ -269,13 +271,15 @@ productForm?.addEventListener("submit",async e=>{
  const price=isDecant?decantPrice5:Number(document.getElementById("newPrice").value);
  const originalPrice=isDecant?0:Number(document.getElementById("newOriginalPrice").value||0);
  if(isDecant&&(!Number.isFinite(decantPrice5)||decantPrice5<=0||!Number.isFinite(decantPrice10)||decantPrice10<=0)){showProductMessage("Informe preços válidos para os decants de 5 ml e 10 ml.");return}
+ if(isDecant&&![Number(document.getElementById("newDecantStock5")?.value),Number(document.getElementById("newDecantStock10")?.value)].every(v=>Number.isInteger(v)&&v>=0)){showProductMessage("Informe estoques válidos para 5 ml e 10 ml.");return}
  if(originalPrice>0&&originalPrice<price){showProductMessage("O preço original deve ser maior ou igual ao preço de venda.");return}
  const product={
   name:document.getElementById("newName").value.trim(),brand:document.getElementById("newBrand").value.trim(),
   category,gender:document.getElementById("newGender").value,
   volume:isDecant?5:Number(document.getElementById("newVolume").value||0),price,originalPrice,
   ...(isDecant?{decantPrices:{"5":decantPrice5,"10":decantPrice10}}:{}),
-  stock:Number(document.getElementById("newStock").value||0),desc:document.getElementById("newDesc").value.trim(),
+  stock:isDecant?(Number(document.getElementById("newDecantStock5")?.value||0)+Number(document.getElementById("newDecantStock10")?.value||0)):Number(document.getElementById("newStock").value||0),
+  ...(isDecant?{decantStocks:{"5":Number(document.getElementById("newDecantStock5")?.value||0),"10":Number(document.getElementById("newDecantStock10")?.value||0)}}:{}),desc:document.getElementById("newDesc").value.trim(),
   isLaunch:document.getElementById("newIsLaunch").checked,isFeatured:document.getElementById("newIsFeatured").checked,images:selectedImages.filter(Boolean),image:selectedImages.find(Boolean)||""
  };
  try{
@@ -292,8 +296,14 @@ function toggleNewDecantFields(){
  const standardPrice=document.getElementById("newStandardPriceField");
  const originalPrice=document.getElementById("newOriginalPrice")?.closest("div");
  if(decantFields)decantFields.hidden=!isDecant;
+ const standardStock=document.getElementById("newStandardStockField");
+ const standardVolume=document.getElementById("newStandardVolumeField");
+ if(standardStock)standardStock.hidden=isDecant;
+ if(standardVolume)standardVolume.hidden=isDecant;
  if(standardPrice)standardPrice.hidden=isDecant;
- if(originalPrice)originalPrice.hidden=isDecant;
+ const standardOriginal=document.getElementById("newStandardOriginalPriceField");
+ if(standardOriginal)standardOriginal.hidden=isDecant;
+ else if(originalPrice)originalPrice.hidden=isDecant;
  const p5=document.getElementById("newDecantPrice5");const p10=document.getElementById("newDecantPrice10");
  if(p5)p5.required=isDecant;if(p10)p10.required=isDecant;
  const standardInput=document.getElementById("newPrice");if(standardInput)standardInput.required=!isDecant;

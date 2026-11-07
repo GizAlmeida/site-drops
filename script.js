@@ -4681,6 +4681,10 @@ function renderCustomerAuth() {
                         <label for="customerPhone">Telefone com DDD</label>
                         <input id="customerPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(85) 99999-9999" required>
                     </div>
+                    <div class="field-wrap">
+                        <label for="customerDocument">CPF</label>
+                        <input id="customerDocument" name="document" type="text" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" required>
+                    </div>
                 ` : ""}
 
                 <div class="field-wrap">
@@ -4710,6 +4714,14 @@ function renderCustomerAuth() {
 
     const phone = document.getElementById("customerPhone");
     if (phone) phone.addEventListener("input", () => { phone.value = formatCustomerPhone(phone.value); });
+    const documentField = document.getElementById("customerDocument");
+    if (documentField) documentField.addEventListener("input", () => {
+        const digits = documentField.value.replace(/\D/g, "").slice(0, 11);
+        documentField.value = digits
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    });
 
     const form = document.getElementById("customerAuthForm");
     if (form) form.addEventListener("submit", handleCustomerAuthSubmit);
@@ -4735,7 +4747,13 @@ async function handleCustomerAuthSubmit(event) {
         const endpoint = customerAuthMode === "login" ? "/api/customer/login" : "/api/customer/register";
         const payload = customerAuthMode === "login"
             ? { email: data.email, password: data.password }
-            : { name: data.name, email: data.email, phone: String(data.phone || "").replace(/\D/g, ""), password: data.password };
+            : {
+                name: data.name,
+                email: data.email,
+                phone: String(data.phone || "").replace(/\D/g, ""),
+                document: String(data.document || "").replace(/\D/g, ""),
+                password: data.password
+            };
 
         const result = await customerRequest(endpoint, {
             method: "POST",
@@ -4789,6 +4807,10 @@ function renderCustomerAccount() {
 
                 <form class="customer-form" id="customerAddressForm">
                     <div class="field-wrap">
+                        <label for="customerProfileDocument">CPF</label>
+                        <input id="customerProfileDocument" name="document" type="text" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" value="${customerEscape(currentCustomer.document || "")}" required>
+                    </div>
+                    <div class="field-wrap">
                         <label for="customerCep">CEP</label>
                         <input id="customerCep" name="cep" type="text" inputmode="numeric" maxlength="9" placeholder="00000-000" value="${customerEscape(address?.cep ? formatCustomerCep(address.cep) : "")}" required>
                     </div>
@@ -4838,6 +4860,15 @@ function renderCustomerAccount() {
     `;
 
     loadCustomerOrders();
+
+    const profileDocument = document.getElementById("customerProfileDocument");
+    if (profileDocument) profileDocument.addEventListener("input", () => {
+        const digits = profileDocument.value.replace(/\D/g, "").slice(0, 11);
+        profileDocument.value = digits
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    });
 
     const cep = document.getElementById("customerCep");
     if (cep) {
@@ -4955,6 +4986,7 @@ async function saveCustomerAddress(event) {
         const result = await customerRequest("/api/customer/profile", {
             method: "POST",
             body: JSON.stringify({
+                document: String(data.document || "").replace(/\D/g, ""),
                 cep: String(data.cep || "").replace(/\D/g, ""),
                 street: data.street,
                 number: data.number,
