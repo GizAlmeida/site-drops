@@ -3546,27 +3546,62 @@ function renderProductModalGallery(product) {
     });
 }
 
-function updateProductModalVariant(product) {
-    const selector = document.getElementById("productModalVariant");
+
+function ensureDecantVariantStyles() {
+    if (document.getElementById("decantVariantStyles")) return;
+    const style = document.createElement("style");
+    style.id = "decantVariantStyles";
+    style.textContent = `
+        .decant-variant-wrap { display:block; margin:16px 0 12px; }
+        .decant-variant-title { display:block; margin-bottom:9px; color:#6f6258; font-size:12px; letter-spacing:.04em; }
+        .decant-variant-options { display:flex; gap:10px; }
+        .decant-variant-button {
+            flex:1; min-height:46px; padding:10px 16px; border:1px solid #d8cec3;
+            border-radius:8px; background:#fff; color:#332b26; font:inherit;
+            font-size:14px; cursor:pointer; transition:background .15s,border-color .15s,color .15s;
+        }
+        .decant-variant-button.is-selected { border-color:#2b2420; background:#2b2420; color:#fff; }
+        .decant-variant-button:disabled { opacity:.38; cursor:not-allowed; }
+        .decant-variant-button:focus-visible { outline:2px solid #9c7a45; outline-offset:2px; }
+    `;
+    document.head.appendChild(style);
+}
+
+function updateProductModalVariant(product, selectedMl = null) {
+    const wrap = document.getElementById("productModalVariantWrap");
     const price = document.getElementById("productModalPrice");
     const stock = document.getElementById("productModalStock");
     const addButton = document.getElementById("productModalAdd");
-    const variantMl = product.category === "decants" ? Number(selector?.value || activeProductDetailsVariantMl || 5) : null;
+
+    const variantMl = Number(selectedMl || activeProductDetailsVariantMl || 5);
     activeProductDetailsVariantMl = variantMl;
 
     const unitPrice = getVariantPrice(product, variantMl);
     const stockValue = getVariantStock(product, variantMl);
+
     if (price) price.innerHTML = `<strong>${fmtPrice(unitPrice)}</strong>`;
+
+    // Estoque é informação interna: nunca exibir quantidade ou disponibilidade no modal.
     if (stock) {
-        stock.textContent = stockValue > 0
-            ? (stockValue === 1 ? "● Última unidade disponível" : `● ${stockValue} unidades disponíveis`)
-            : "● Esta opção está sem estoque";
-        stock.classList.toggle("in-stock", stockValue > 0);
-        stock.classList.toggle("out-of-stock", stockValue <= 0);
+        stock.textContent = "";
+        stock.hidden = true;
+        stock.style.display = "none";
+        stock.setAttribute("aria-hidden", "true");
     }
+
+    if (wrap) {
+        wrap.querySelectorAll("[data-decant-variant]").forEach(button => {
+            const isSelected = Number(button.dataset.decantVariant) === variantMl;
+            button.classList.toggle("is-selected", isSelected);
+            button.setAttribute("aria-pressed", String(isSelected));
+        });
+    }
+
     if (addButton) {
-        addButton.disabled = stockValue <= 0;
-        addButton.textContent = stockValue > 0 ? "Adicionar ao carrinho" : "Opção sem estoque";
+        addButton.disabled = stockValue <= 0 || unitPrice <= 0;
+        addButton.textContent = stockValue > 0 && unitPrice > 0
+            ? "Adicionar ao carrinho"
+            : "Opção indisponível";
     }
 }
 
@@ -3614,39 +3649,52 @@ function openProductDetails(productId) {
             };
             metaParts.push(genderLabels[product.gender] || product.gender);
         }
-        if (product.volume) metaParts.push(`${Number(product.volume)} ml`);
+        if (product.volume && product.category !== "decants") metaParts.push(`${Number(product.volume)} ml`);
         meta.innerHTML = metaParts.map(item =>
             `<span>${escapeHTML(item)}</span>`
         ).join("");
     }
 
-    let variantSelector = document.getElementById("productModalVariant");
+    let variantWrap = document.getElementById("productModalVariantWrap");
     if (product.category === "decants") {
-        if (!variantSelector && price) {
+        ensureDecantVariantStyles();
+        document.getElementById("productModalVariant")?.remove();
+        if (!variantWrap && price) {
             price.insertAdjacentHTML("beforebegin", `
-                <label id="productModalVariantWrap" style="display:block;margin:12px 0 8px;font-size:13px;font-weight:600;">
-                    Tamanho do decant
-                    <select id="productModalVariant" style="display:block;width:100%;margin-top:6px;padding:11px;border:1px solid #c9b98d;border-radius:8px;background:#fff;color:#333;">
-                        <option value="5">5ml</option>
-                        <option value="10">10ml</option>
-                    </select>
-                </label>`);
-            variantSelector = document.getElementById("productModalVariant");
+                <div id="productModalVariantWrap" class="decant-variant-wrap">
+                    <span class="decant-variant-title">Escolha o tamanho</span>
+                    <div class="decant-variant-options" role="group" aria-label="Tamanho do decant">
+                        <button type="button" class="decant-variant-button" data-decant-variant="5" aria-pressed="false">5 ml</button>
+                        <button type="button" class="decant-variant-button" data-decant-variant="10" aria-pressed="false">10 ml</button>
+                    </div>
+                </div>`);
+            variantWrap = document.getElementById("productModalVariantWrap");
         }
+
         const options = [5, 10].filter(ml =>
             Number(product.decantPrices?.[String(ml)]) > 0
         );
-        if (variantSelector) {
-            variantSelector.innerHTML = options.map(ml =>
-                `<option value="${ml}">${ml}ml — ${fmtPrice(product.decantPrices[String(ml)])} (${getVariantStock(product, ml)} disponíveis)</option>`
-            ).join("");
-            const preferred = options.includes(5) && getVariantStock(product, 5) > 0
-                ? 5
-                : (options.find(ml => getVariantStock(product, ml) > 0) || options[0] || 5);
-            variantSelector.value = String(preferred);
-            variantSelector.onchange = () => updateProductModalVariant(product);
+
+        if (variantWrap) {
+            variantWrap.querySelectorAll("[data-decant-variant]").forEach(button => {
+                const ml = Number(button.dataset.decantVariant);
+                const hasPrice = options.includes(ml);
+                const hasStock = getVariantStock(product, ml) > 0;
+                button.hidden = !hasPrice;
+                button.disabled = !hasPrice || !hasStock;
+                button.onclick = () => {
+                    if (button.disabled) return;
+                    updateProductModalVariant(product, ml);
+                };
+                button.title = hasStock ? `Selecionar ${ml} ml` : "Opção indisponível";
+            });
         }
-        updateProductModalVariant(product);
+
+        const preferred = options.includes(5) && getVariantStock(product, 5) > 0
+            ? 5
+            : (options.find(ml => getVariantStock(product, ml) > 0) || options[0] || 5);
+        activeProductDetailsVariantMl = preferred;
+        updateProductModalVariant(product, preferred);
     } else {
         activeProductDetailsVariantMl = null;
         document.getElementById("productModalVariantWrap")?.remove();
@@ -3657,15 +3705,15 @@ function openProductDetails(productId) {
         }
         const stockValue = Number(product.stock || 0);
         if (stock) {
-            stock.textContent = stockValue > 0
-                ? (stockValue === 1 ? "● Última unidade disponível" : `● ${stockValue} unidades disponíveis`)
-                : "● Produto sem estoque";
-            stock.classList.toggle("in-stock", stockValue > 0);
-            stock.classList.toggle("out-of-stock", stockValue <= 0);
+            // Não exibir estoque de nenhum produto na vitrine.
+            stock.textContent = "";
+            stock.hidden = true;
+            stock.style.display = "none";
+            stock.setAttribute("aria-hidden", "true");
         }
         if (addButton) {
             addButton.disabled = stockValue <= 0;
-            addButton.textContent = stockValue > 0 ? "Adicionar ao carrinho" : "Produto sem estoque";
+            addButton.textContent = stockValue > 0 ? "Adicionar ao carrinho" : "Produto indisponível";
         }
     }
 
